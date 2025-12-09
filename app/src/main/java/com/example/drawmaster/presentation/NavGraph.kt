@@ -24,5 +24,8 @@ fun DrawMasterNavHost(
         composable(route = "select_image") {
             SelectImageScreen(navController = navController)
         }
+        composable(route = "confirm_image") {
+            ConfirmImageScreen(navController = navController)
+        }
     }
 }

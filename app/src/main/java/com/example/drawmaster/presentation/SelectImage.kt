@@ -15,6 +15,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.drawmaster.ui.theme.DrawMasterTheme
 import com.example.drawmaster.R
+import com.example.drawmaster.presentation.components.CustomButton
+import com.example.drawmaster.ui.theme.TealBlue
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,11 +47,11 @@ fun SelectImageScreen(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Select Image")
+                        Text("Select Image",  color = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF00b8db)
+                    containerColor = TealBlue
                 )
             )
         },
