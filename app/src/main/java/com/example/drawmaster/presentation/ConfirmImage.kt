@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
@@ -20,14 +21,20 @@ import com.example.drawmaster.R
 import com.example.drawmaster.presentation.components.TextButton
 import com.example.drawmaster.ui.theme.LightGray
 import com.example.drawmaster.ui.theme.TealBlue
-
+import coil.compose.rememberAsyncImagePainter
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfirmImageScreen(
     navController: NavHostController,
+    imageUriString: String?,
     modifier: Modifier = Modifier
 ) {
+    // Transforming the imageUriString to a Uri
+    val imageUri = remember(imageUriString) {
+        imageUriString?.toUri()
+    }
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -74,14 +81,24 @@ fun ConfirmImageScreen(
                             .fillMaxWidth(0.9f)
                             .height(220.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.LightGray)
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.mountains),
-                            contentDescription = "Selected image",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
+                        if (imageUri != null) {
+                            Image(
+                                painter = rememberAsyncImagePainter(model = imageUri),
+                                contentDescription = "Selected image from camera",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            // Displaying default image if there is no Uri
+                            Image(
+                                painter = painterResource(id = R.drawable.mountains),
+                                contentDescription = "Placeholder image",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
                     }
                 }
                 Column(
@@ -120,6 +137,6 @@ fun ConfirmImageScreen(
 fun ConfirmImageScreenPreview() {
     val navController = rememberNavController()
     DrawMasterTheme {
-        ConfirmImageScreen(navController = navController)
+        ConfirmImageScreen(navController = navController, imageUriString = null)
     }
 }
