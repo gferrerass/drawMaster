@@ -20,20 +20,21 @@ fun DrawMasterNavHost(
         modifier = modifier
     ) {
         composable(route = "main_screen") {
-            MainScreen(onSinglePlayer = { navController.navigate("select_image") })
+            MainScreen(navController = navController)
         }
         composable(route = "select_image") {
             SelectImageScreen(navController = navController)
         }
-        composable(
-            route = "confirm_image/{imageUri}",
-            arguments = listOf(navArgument("imageUri") { type = NavType.StringType })
+        composable(route = "confirm_image/{imageUri}",
+            arguments = listOf(
+                navArgument("imageUri") {
+                    type = NavType.StringType
+                    nullable = true
+                }
+            )
         ) { backStackEntry ->
             val imageUri = backStackEntry.arguments?.getString("imageUri")
             ConfirmImageScreen(navController = navController, imageUriString = imageUri)
-        }
-        composable(route = "confirm_image") {
-            ConfirmImageScreen(navController = navController, imageUriString = null)
         }
     }
 }

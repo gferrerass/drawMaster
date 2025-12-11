@@ -22,7 +22,9 @@ import com.example.drawmaster.presentation.components.TextButton
 import com.example.drawmaster.ui.theme.LightGray
 import com.example.drawmaster.ui.theme.TealBlue
 import coil.compose.rememberAsyncImagePainter
-import androidx.core.net.toUri
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.drawmaster.presentation.viewmodel.ConfirmImageViewModel
+import com.example.drawmaster.presentation.viewmodel.ConfirmImageViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,16 +33,18 @@ fun ConfirmImageScreen(
     imageUriString: String?,
     modifier: Modifier = Modifier
 ) {
-    // Transforming the imageUriString to a Uri
-    val imageUri = remember(imageUriString) {
-        imageUriString?.toUri()
+    val factory = remember {
+        ConfirmImageViewModelFactory(imageUriString)
     }
+    val viewModel: ConfirmImageViewModel = viewModel(factory = factory)
+    val imageUri = viewModel.imageUri
+
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { viewModel.onChooseDifferentImageClicked(navController) }) {
                         Image(
                             painter = painterResource(id = R.drawable.arrow),
                             contentDescription = "Go Back",
@@ -114,14 +118,14 @@ fun ConfirmImageScreen(
                         backgroundColor = TealBlue,
                         borderColor = TealBlue,
                         fontColor = Color.White,
-                        onClick = {}
+                        onClick = { viewModel.onStartDrawingClicked(navController) }
                     )
                     TextButton (
                         name = "Choose a different image",
                         backgroundColor = Color.White,
                         borderColor = LightGray,
                         fontColor = Color.Black,
-                        onClick = { navController.popBackStack() }
+                        onClick = { viewModel.onChooseDifferentImageClicked(navController) }
                     )
                 }
             }

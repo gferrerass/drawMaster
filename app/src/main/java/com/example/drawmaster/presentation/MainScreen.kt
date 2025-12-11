@@ -14,15 +14,19 @@ import com.example.drawmaster.ui.theme.DrawMasterTheme
 import com.example.drawmaster.R
 import com.example.drawmaster.presentation.components.CustomButton
 import com.example.drawmaster.ui.theme.TealBlue
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
+import com.example.drawmaster.presentation.viewmodel.MainViewModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
+    navController: NavHostController,
     modifier: Modifier = Modifier,
-    onSinglePlayer: () -> Unit = {},
-    onMultiplayer: () -> Unit = {}
 ) {
+    val viewModel: MainViewModel = viewModel()
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -64,13 +68,13 @@ fun MainScreen(
                         name = "Single Player",
                         description = "Practice your skills",
                         image = painterResource(id = R.drawable.profile),
-                        onClick = onSinglePlayer
+                        onClick = { viewModel.onSinglePlayerClicked(navController) }
                     )
                     CustomButton(
                         name = "Multiplayer",
                         description = "Challenge your friends",
                         image = painterResource(id = R.drawable.multiplayer),
-                        onClick = onMultiplayer
+                        onClick = { viewModel.onMultiplayerClicked(navController) }
                     )
                 }
             }
@@ -81,7 +85,8 @@ fun MainScreen(
 @Preview(showBackground = true)
 @Composable
 fun MainScreenPreview() {
+    val navController = rememberNavController()
     DrawMasterTheme {
-        MainScreen()
+        MainScreen(navController = navController)
     }
 }
