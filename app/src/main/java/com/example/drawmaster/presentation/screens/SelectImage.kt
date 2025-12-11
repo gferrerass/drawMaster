@@ -1,4 +1,4 @@
-package com.example.drawmaster.presentation
+package com.example.drawmaster.presentation.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts

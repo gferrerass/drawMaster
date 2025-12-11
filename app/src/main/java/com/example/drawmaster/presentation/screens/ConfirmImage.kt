@@ -1,4 +1,4 @@
-package com.example.drawmaster.presentation
+package com.example.drawmaster.presentation.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
