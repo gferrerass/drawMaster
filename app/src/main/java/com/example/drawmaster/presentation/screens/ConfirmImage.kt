@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -37,7 +38,8 @@ fun ConfirmImageScreen(
         ConfirmImageViewModelFactory(imageUriString)
     }
     val viewModel: ConfirmImageViewModel = viewModel(factory = factory)
-    val imageUri = viewModel.imageUri
+    val uiState = viewModel.uiState.collectAsState().value
+    val imageUri = uiState.imageUri
 
     Scaffold(
         modifier = modifier,
