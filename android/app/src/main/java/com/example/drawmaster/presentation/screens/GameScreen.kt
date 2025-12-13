@@ -2,6 +2,8 @@ package com.example.drawmaster.presentation.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -171,12 +173,15 @@ private fun GamePlayingContent(
     navController: NavHostController,
     modifier: Modifier = Modifier
 ) {
+    val strokeColor = viewModel.strokeColor.collectAsState().value
+    val strokeWidth = viewModel.strokeWidth.collectAsState().value
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(innerPadding)
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Timer prominente
         TimerDisplay(timeRemaining)
@@ -185,20 +190,23 @@ private fun GamePlayingContent(
         ReferenceImageSection(imageUriString)
 
         // Canvas para dibujar
-        Text(
-            text = "Draw here:",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color.Gray
-        )
-        
         DrawingCanvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(350.dp),
+                .height(320.dp),
+            strokeColor = Color(strokeColor),
+            strokeWidth = strokeWidth,
             onDrawingChanged = { newStrokes ->
                 viewModel.onDrawingChanged(newStrokes)
             }
+        )
+
+        // Controles de color y grosor
+        DrawingControls(
+            currentColor = strokeColor,
+            currentWidth = strokeWidth,
+            onColorChange = { viewModel.setStrokeColor(it) },
+            onWidthChange = { viewModel.setStrokeWidth(it) }
         )
 
         // Controles (botones)
@@ -324,6 +332,85 @@ private fun GameControlButtons(
             )
         ) {
             Text("Submit", fontSize = 12.sp, color = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun DrawingControls(
+    currentColor: Int,
+    currentWidth: Float,
+    onColorChange: (Int) -> Unit,
+    onWidthChange: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF5F5F5), shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
+            .padding(8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Selector de colores
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val colors = listOf(
+                android.graphics.Color.BLACK,
+                android.graphics.Color.RED,
+                android.graphics.Color.BLUE,
+                android.graphics.Color.GREEN,
+                android.graphics.Color.rgb(255, 165, 0),
+                android.graphics.Color.rgb(128, 0, 128)
+            )
+            
+            colors.forEach { color ->
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(
+                            color = Color(color),
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        )
+                        .then(
+                            if (currentColor == color) {
+                                Modifier.border(
+                                    width = 2.dp,
+                                    color = TealBlue,
+                                    shape = androidx.compose.foundation.shape.CircleShape
+                                )
+                            } else Modifier
+                        )
+                        .clickable { onColorChange(color) }
+                )
+            }
+        }
+
+        // Slider de grosor (más compacto)
+        Column(
+            modifier = Modifier.width(120.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "${currentWidth.toInt()}px",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.Gray
+            )
+            
+            Slider(
+                value = currentWidth,
+                onValueChange = onWidthChange,
+                valueRange = 1f..10f,
+                steps = 8,
+                modifier = Modifier.height(20.dp),
+                colors = SliderDefaults.colors(
+                    thumbColor = TealBlue,
+                    activeTrackColor = TealBlue
+                )
+            )
         }
     }
 }

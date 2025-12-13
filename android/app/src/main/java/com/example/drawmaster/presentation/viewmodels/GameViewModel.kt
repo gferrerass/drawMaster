@@ -44,6 +44,12 @@ class GameViewModel : ViewModel() {
     private val _imageName = MutableStateFlow<String?>(null)
     val imageName: StateFlow<String?> = _imageName.asStateFlow()
 
+    private val _strokeColor = MutableStateFlow(android.graphics.Color.BLACK)
+    val strokeColor: StateFlow<Int> = _strokeColor.asStateFlow()
+
+    private val _strokeWidth = MutableStateFlow(3f)
+    val strokeWidth: StateFlow<Float> = _strokeWidth.asStateFlow()
+
     private var timerJob: Job? = null
     private val totalGameTime = 30 // segundos
 
@@ -84,6 +90,14 @@ class GameViewModel : ViewModel() {
             _strokes.value = strokes
             onDrawingChanged(strokes)
         }
+    }
+
+    fun setStrokeColor(color: Int) {
+        _strokeColor.value = color
+    }
+
+    fun setStrokeWidth(width: Float) {
+        _strokeWidth.value = width
     }
 
     fun finishGame(score: Float = 0f) {

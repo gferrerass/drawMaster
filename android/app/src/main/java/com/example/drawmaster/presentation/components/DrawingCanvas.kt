@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import android.graphics.Bitmap
@@ -28,7 +29,9 @@ data class DrawingPoint(
 )
 
 data class DrawingStroke(
-    val points: List<DrawingPoint>
+    val points: List<DrawingPoint>,
+    val color: Int = android.graphics.Color.BLACK,
+    val width: Float = 3f
 )
 
 /**
@@ -56,7 +59,7 @@ fun DrawingCanvas(
             .height(400.dp)
             .background(Color.White)
             .clipToBounds()
-            .pointerInput(Unit) {
+            .pointerInput(strokeColor, strokeWidth) {
                 detectDragGestures(
                     onDragStart = { offset ->
                         // offset es la posición inicial del toque
@@ -72,7 +75,11 @@ fun DrawingCanvas(
                     onDragEnd = {
                         if (currentPath.value.isNotEmpty()) {
                             val newStrokes = strokes.value.toMutableList()
-                            newStrokes.add(DrawingStroke(currentPath.value))
+                            newStrokes.add(DrawingStroke(
+                                points = currentPath.value,
+                                color = strokeColor.toArgb(),
+                                width = strokeWidth
+                            ))
                             strokes.value = newStrokes
                             onDrawingChanged(newStrokes)
                             currentPath.value = emptyList()
@@ -81,10 +88,7 @@ fun DrawingCanvas(
                 )
             }
             .drawBehind {
-                // Usar size.width y size.height para asegurar que coincida
-                // drawRect ya dibuja en el área disponible
-                
-                // Dibujar strokes completados
+                // Dibujar strokes completados (cada uno con su propio color y grosor)
                 strokes.value.forEach { stroke ->
                     if (stroke.points.size >= 2) {
                         for (i in 1 until stroke.points.size) {
@@ -92,17 +96,17 @@ fun DrawingCanvas(
                             val currentPoint = stroke.points[i]
                             
                             drawLine(
-                                color = strokeColor,
+                                color = Color(stroke.color),
                                 start = androidx.compose.ui.geometry.Offset(prevPoint.x, prevPoint.y),
                                 end = androidx.compose.ui.geometry.Offset(currentPoint.x, currentPoint.y),
-                                strokeWidth = strokeWidth,
+                                strokeWidth = stroke.width,
                                 cap = androidx.compose.ui.graphics.StrokeCap.Round
                             )
                         }
                     }
                 }
                 
-                // Dibujar trazo actual mientras se dibuja
+                // Dibujar trazo actual mientras se dibuja (con color y grosor actuales)
                 if (currentPath.value.size >= 2) {
                     for (i in 1 until currentPath.value.size) {
                         val prevPoint = currentPath.value[i - 1]
