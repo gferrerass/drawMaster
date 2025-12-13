@@ -24,8 +24,8 @@ import com.example.drawmaster.ui.theme.LightGray
 import com.example.drawmaster.ui.theme.TealBlue
 import coil.compose.rememberAsyncImagePainter
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.drawmaster.presentation.viewmodel.ConfirmImageViewModel
-import com.example.drawmaster.presentation.viewmodel.ConfirmImageViewModelFactory
+import com.example.drawmaster.presentation.viewmodels.ConfirmImageViewModel
+import com.example.drawmaster.presentation.viewmodels.ConfirmImageViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

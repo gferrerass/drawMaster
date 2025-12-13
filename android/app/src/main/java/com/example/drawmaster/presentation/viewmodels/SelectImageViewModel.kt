@@ -1,4 +1,4 @@
-package com.example.drawmaster.presentation.viewmodel
+package com.example.drawmaster.presentation.viewmodels
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel

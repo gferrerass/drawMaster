@@ -17,7 +17,7 @@ import com.example.drawmaster.ui.theme.TealBlue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import com.example.drawmaster.presentation.viewmodel.MainViewModel
+import com.example.drawmaster.presentation.viewmodels.MainViewModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)

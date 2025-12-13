@@ -39,5 +39,19 @@ fun DrawMasterNavHost(
             val imageUri = backStackEntry.arguments?.getString("imageUri")
             ConfirmImageScreen(navController = navController, imageUriString = imageUri)
         }
+        composable(route = "game_screen/{imageUri}",
+            arguments = listOf(
+                navArgument("imageUri") {
+                    type = NavType.StringType
+                    nullable = true
+                }
+            )
+        ) { backStackEntry ->
+            val imageUri = backStackEntry.arguments?.getString("imageUri")
+            com.example.drawmaster.presentation.screens.GameScreen(
+                navController = navController,
+                imageUriString = imageUri
+            )
+        }
     }
 }

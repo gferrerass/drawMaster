@@ -1,4 +1,4 @@
-package com.example.drawmaster.presentation.viewmodel
+package com.example.drawmaster.presentation.viewmodels
 
 import android.net.Uri
 import androidx.core.net.toUri
@@ -26,16 +26,14 @@ class ConfirmImageViewModel(
     val uiState: StateFlow<ConfirmImageUiState> = _uiState.asStateFlow()
 
     fun onStartDrawingClicked(navController: NavHostController) {
-        navController.popBackStack(route = "main_screen", inclusive = false)
-        /*
         val finalUri = _uiState.value.imageUri?.toString()
 
         if (finalUri != null) {
             val encodedUri = Uri.encode(finalUri)
-            navController.navigate("drawing_screen/$encodedUri")
+            navController.navigate("game_screen/$encodedUri")
         } else {
             navController.popBackStack()
-        }*/
+        }
     }
 
     fun onChooseDifferentImageClicked(navController: NavHostController) {

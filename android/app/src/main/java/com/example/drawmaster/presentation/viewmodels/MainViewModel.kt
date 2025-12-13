@@ -1,4 +1,4 @@
-package com.example.drawmaster.presentation.viewmodel
+package com.example.drawmaster.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavHostController

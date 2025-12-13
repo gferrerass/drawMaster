@@ -22,8 +22,8 @@ import com.example.drawmaster.R
 import com.example.drawmaster.presentation.components.CustomButton
 import com.example.drawmaster.ui.theme.TealBlue
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.drawmaster.presentation.viewmodel.SelectImageViewModel
-import com.example.drawmaster.presentation.viewmodel.SelectImageViewModelFactory
+import com.example.drawmaster.presentation.viewmodels.SelectImageViewModel
+import com.example.drawmaster.presentation.viewmodels.SelectImageViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -133,14 +133,6 @@ drawing-game-app/
 - **`local.properties`** (local only): SDK path, local build settings
 - **`AndroidManifest.xml`**: App permissions (INTERNET, SENSORS, CAMERA if applicable), activities, Firebase config
 
-### CI/CD & Validation Pipelines
-- **`.github/workflows/build.yml`**: Runs on every PR and merge to main
-  - Lint checks (ktlint, detekt)
-  - Unit tests (./gradlew test)
-  - Build APK (./gradlew assemble)
-  - Firebase emulator tests (if applicable)
-- **`.github/workflows/release.yml`**: Runs on tag creation for production builds
-
 ---
 
 ## 🛠️ Build & Validation Commands
