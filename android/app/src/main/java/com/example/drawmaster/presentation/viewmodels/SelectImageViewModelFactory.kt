@@ -18,7 +18,8 @@ class SelectImageViewModelFactory(
 
             val useCase = CreateTempImageUriUseCase(repository)
 
-            return SelectImageViewModel(useCase) as T
+
+            return SelectImageViewModel(useCase, applicationContext) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

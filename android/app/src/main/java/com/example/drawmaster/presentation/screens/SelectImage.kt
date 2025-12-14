@@ -1,5 +1,6 @@
 package com.example.drawmaster.presentation.screens
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -29,8 +30,7 @@ import com.example.drawmaster.presentation.viewmodels.SelectImageViewModelFactor
 @Composable
 fun SelectImageScreen(
     navController: NavHostController,
-    modifier: Modifier = Modifier,
-    onMultiplayer: () -> Unit = {}
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
 
@@ -49,6 +49,14 @@ fun SelectImageScreen(
             }
         }
     )
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val encodedUri = Uri.encode(uri.toString())
+            navController.navigate("confirm_image/$encodedUri")
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -104,26 +112,26 @@ fun SelectImageScreen(
                         description = "Use your camera",
                         image = painterResource(id = R.drawable.camera),
                         onClick = {
-                            // 1. Obtener la URI temporal del ViewModel
                             val uri = viewModel.generateTempImageUri()
-
-                            // 2. Lanzar la cámara con la URI
                             cameraLauncher.launch(uri)
                         }
                     )
-
-                    // El resto de botones se mantiene igual
                     CustomButton(
                         name = "Upload an image",
                         description = "From your gallery",
                         image = painterResource(id = R.drawable.upload),
-                        onClick = onMultiplayer
+                        onClick = {galleryLauncher.launch("image/*")}
                     )
                     CustomButton(
                         name = "Use a sample image",
                         description = "A random picture",
                         image = painterResource(id = R.drawable.gallery),
-                        onClick = onMultiplayer
+                        onClick = {
+                            val route = viewModel.generateSampleImageNavigationRoute()
+                            if (route != null) {
+                                navController.navigate(route)
+                            }
+                        }
                     )
                 }
             }
@@ -137,8 +145,6 @@ fun SelectImageScreen(
 fun SelectImageScreenPreview() {
     val navController = rememberNavController()
     DrawMasterTheme {
-        // Nota: En un preview real, la factory fallaría si intenta acceder a un Context de verdad.
-        // Pero para el objetivo del Preview se puede ignorar o simular.
         SelectImageScreen(navController = navController)
     }
 }
