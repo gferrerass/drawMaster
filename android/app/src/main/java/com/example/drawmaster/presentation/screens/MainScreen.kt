@@ -18,7 +18,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.drawmaster.presentation.viewmodels.MainViewModel
-
+import com.example.drawmaster.presentation.viewmodels.AuthViewModel
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExitToApp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,16 +31,43 @@ fun MainScreen(
     modifier: Modifier = Modifier,
 ) {
     val viewModel: MainViewModel = viewModel()
+    val authViewModel: AuthViewModel = viewModel()
+    val currentUser by authViewModel.currentUser.collectAsState()
+    
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
                 title = {
-                    Box(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("DrawMaster",  color = Color.White)
+                        Text("DrawMaster", color = Color.White)
+                        val displayText = currentUser?.displayName ?: currentUser?.email
+                        displayText?.let { name ->
+                            Text(
+                                text = "Welcome $name",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            authViewModel.signOut()
+                            navController.navigate("login") {
+                                popUpTo("main_screen") { inclusive = true }
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ExitToApp,
+                            contentDescription = "Cerrar sesión",
+                            tint = Color.White
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

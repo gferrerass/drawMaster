@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.example.drawmaster.presentation.DrawMasterNavHost
 import com.example.drawmaster.ui.theme.DrawMasterTheme
+import com.google.firebase.FirebaseApp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,5 +23,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize())
             }
         }
+        FirebaseApp.initializeApp(this)
+
     }
 }

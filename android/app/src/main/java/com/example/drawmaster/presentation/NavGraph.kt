@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.drawmaster.presentation.screens.ConfirmImageScreen
+import com.example.drawmaster.presentation.screens.LoginScreen
 import com.example.drawmaster.presentation.screens.MainScreen
 import com.example.drawmaster.presentation.screens.SelectImageScreen
 
@@ -19,9 +20,12 @@ fun DrawMasterNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = "main_screen",
+        startDestination = "login",
         modifier = modifier
     ) {
+        composable(route = "login") {
+            LoginScreen(navController = navController)
+        }
         composable(route = "main_screen") {
             MainScreen(navController = navController)
         }
