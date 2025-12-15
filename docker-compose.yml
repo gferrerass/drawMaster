@@ -1,0 +1,34 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: drawmaster
+      MYSQL_USER: drawuser
+      MYSQL_PASSWORD: drawpass
+      MYSQL_ROOT_PASSWORD: rootpass
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  web:
+    build:
+      context: ./api-rest
+    restart: unless-stopped
+    env_file:
+      - ./api-rest/.env
+    environment:
+      # override DB for container network
+      DATABASE_URL: mysql+pymysql://drawuser:drawpass@db:3306/drawmaster
+      FLASK_APP: run.py
+      FLASK_ENV: development
+    depends_on:
+      - db
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./api-rest:/app
+
+volumes:
+  db_data:

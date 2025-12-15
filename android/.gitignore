@@ -1,15 +1,37 @@
+### Android / Android Studio ###
+# Gradle
+.gradle/
+/**/build/
+*/build/
+
+# Local configuration (SDK path, etc.)
+local.properties
+
+# IntelliJ / Android Studio
+.idea/
 *.iml
-.gradle
-/local.properties
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+
+# Native build
+.externalNativeBuild/
+.cxx/
+
+# Captures and outputs
+/captures/
+
+# Keystore files
+*.jks
+*.keystore
+
+# Misc
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+Thumbs.db
+
+# Kotlin
+*.kotlin_module
+

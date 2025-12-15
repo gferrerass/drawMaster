@@ -11,6 +11,7 @@ import com.example.drawmaster.presentation.screens.ConfirmImageScreen
 import com.example.drawmaster.presentation.screens.LoginScreen
 import com.example.drawmaster.presentation.screens.MainScreen
 import com.example.drawmaster.presentation.screens.SelectImageScreen
+import com.example.drawmaster.presentation.screens.ProfileScreen
 
 
 @Composable
@@ -28,6 +29,9 @@ fun DrawMasterNavHost(
         }
         composable(route = "main_screen") {
             MainScreen(navController = navController)
+        }
+        composable(route = "profile") {
+            ProfileScreen(navController = navController)
         }
         composable(route = "select_image") {
             SelectImageScreen(navController = navController)

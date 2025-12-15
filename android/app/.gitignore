@@ -1,1 +1,19 @@
-/build
+### Module: app ###
+# Build outputs
+/build/
+
+# Local keystore and signing files
+*.jks
+*.keystore
+keystore.properties
+
+# Native build
+.externalNativeBuild/
+.cxx/
+
+# Generated
+/app/src/main/generated/
+
+# Misc
+.DS_Store
+Thumbs.db

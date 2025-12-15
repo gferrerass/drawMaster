@@ -1,0 +1,59 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs / editors
+.vscode/
+.idea/
+*.iml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+env/
+venv/
+.venv/
+pip-wheel-metadata/
+.python-version
+
+# Build / distribution
+build/
+dist/
+*.egg-info/
+
+# Docker
+# Ignore docker compose overrides and local secrets
+docker-compose.override.yml
+
+# Node
+node_modules/
+
+# Logs, coverage
+*.log
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Local secrets / env files
+.env
+.env.*
+
+# Android / Gradle (project contains an Android module)
+android/local.properties
+android/.gradle/
+android/**/build/
+
+# API-specific artifacts
+api-rest/.env
+api-rest/instance/data.db
+api-rest/__pycache__/
+api-rest/*.pyc
+api-rest/**/__pycache__/
+api-rest/migrations/__pycache__/
+
+# Misc
+*.pem
+*.key

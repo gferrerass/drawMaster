@@ -8,9 +8,11 @@
 ## 📌 High-Level Repository Overview
 
 ### What This Repository Does
+
 This is an **Android drawing game application** built in **Kotlin** that challenges players to replicate randomly fetched images within a time limit. The app features both single-player (with ML-based scoring) and multiplayer (competitive with friends) game modes. It integrates with Unsplash API for random images, Firebase for real-time multiplayer sync and authentication, and a machine learning model for drawing similarity evaluation.
 
 ### Project Type & Stack
+
 - **Type**: Native Android Application (Mobile)
 - **Language**: Kotlin 100%
 - **Architecture**: MVVM + Clean Architecture (3-layer: Presentation, Domain, Data)
@@ -19,6 +21,7 @@ This is an **Android drawing game application** built in **Kotlin** that challen
 - **Build System**: Gradle (Kotlin DSL)
 
 ### Key Technologies
+
 - **UI Framework**: Jetpack Compose (modern declarative UI)
 - **Real-time DB**: Firebase Realtime Database (multiplayer sync)
 - **Authentication**: Firebase Authentication
@@ -34,6 +37,7 @@ This is an **Android drawing game application** built in **Kotlin** that challen
 ## 🏗️ Project Layout & Architecture
 
 ### Directory Structure
+
 ```
 drawing-game-app/
 ├── .github/
@@ -126,6 +130,7 @@ drawing-game-app/
 ```
 
 ### Key Configuration Files
+
 - **`build.gradle.kts` (project)**: Gradle version, plugin versions, repository definitions
 - **`app/build.gradle.kts`**: App dependencies, SDK versions, build flavors, signing config
 - **`gradle.properties`**: Gradle daemon settings, JVM args
@@ -138,12 +143,14 @@ drawing-game-app/
 ## 🛠️ Build & Validation Commands
 
 ### Prerequisites
+
 - **Java**: JDK 11+ (recommend 17)
 - **Android SDK**: API 33+ (auto-downloaded via Gradle)
 - **Gradle**: 8.0+ (auto-installed via wrapper)
 - **Kotlin**: 1.9.0+
 
 ### 1. Initial Setup (First Time Only)
+
 ```bash
 # Clone repo and navigate
 git clone <repo-url>
@@ -164,7 +171,9 @@ java -version
 ```
 
 ### 2. Clean & Build from Scratch
+
 **Always run this before building if you've switched branches or had build errors:**
+
 ```bash
 ./gradlew clean
 ./gradlew build -x test  # Build without running tests first
@@ -173,11 +182,13 @@ java -version
 **Expected time**: 3-5 minutes (first time may take longer due to dependency downloads)
 
 ### 3. Run Unit Tests
+
 ```bash
 ./gradlew test
 ```
 
-**What it does**: 
+**What it does**:
+
 - Runs all tests in `app/src/test/`
 - Generates coverage report in `app/build/reports/tests/`
 
@@ -185,10 +196,12 @@ java -version
 **Exit code**: 0 if all tests pass
 
 **Troubleshooting**:
+
 - If tests fail with "Cannot find symbol": Run `./gradlew clean` first
 - If timeout: Increase JVM memory in `gradle.properties`: `org.gradle.jvmargs=-Xmx4096m`
 
 ### 4. Run Instrumented Tests (Android Device Required)
+
 ```bash
 ./gradlew connectedAndroidTest
 ```
@@ -196,6 +209,7 @@ java -version
 **Requirements**: Physical device or Android emulator running API 30+
 
 ### 5. Lint & Static Analysis
+
 ```bash
 ./gradlew lint                     # Android Lint
 ./gradlew ktlint                   # Kotlin style rules
@@ -205,12 +219,14 @@ java -version
 **Expected**: All should pass with 0 warnings before merging
 
 ### 6. Build Debug APK
+
 ```bash
 ./gradlew assembleDebug
 # Output: app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ### 7. Build Release APK (Requires Signing Config)
+
 ```bash
 ./gradlew assembleRelease
 # Output: app/build/outputs/apk/release/app-release.apk
@@ -219,12 +235,14 @@ java -version
 **Note**: Requires signing key configured in `app/build.gradle.kts`
 
 ### 8. Build & Install to Emulator/Device
+
 ```bash
 ./gradlew installDebug
 # Then run: adb shell am start -n com.drawingapp/.MainActivity
 ```
 
 ### 9. Run Application (Emulator Required)
+
 ```bash
 # Start emulator first
 emulator -avd Pixel_6_API_33 &
@@ -238,6 +256,7 @@ adb wait-for-device
 ```
 
 ### 10. Full Validation (Mimics CI Pipeline)
+
 ```bash
 ./gradlew clean build ktlint detekt lint test
 ```
@@ -250,6 +269,7 @@ adb wait-for-device
 ## ⚠️ Critical Code Patterns & Non-Negotiables
 
 ### ❌ NEVER DO (Professor's Requirements & Best Practices)
+
 1. **No state in UI layers**: Never use Activity/Fragment vars to hold state. Always use ViewModel + StateFlow.
 2. **No nested callbacks**: Never chain `.then().then()` with callbacks. Use Coroutines + suspend functions.
 3. **No GlobalScope**: Always use `viewModelScope` in ViewModels.
@@ -260,6 +280,7 @@ adb wait-for-device
 8. **No unscoped Bitmaps**: Always recycle Bitmap objects to prevent memory leaks.
 
 ### ✅ ALWAYS DO
+
 1. **ViewModels for state**: All UI state lives in ViewModels using MutableStateFlow.
 2. **StateFlow + Coroutines**: Use for async operations and reactive updates.
 3. **Repository pattern**: Data access only through interfaces in domain layer.
@@ -267,21 +288,23 @@ adb wait-for-device
 5. **Error handling**: Wrap Firebase calls in try-catch, emit errors to StateFlow.
 6. **Logging**: Use Timber or Log.d() for debugging, never System.out.println().
 7. **Resource cleanup**: Close DB connections, remove listeners, recycle bitmaps in onCleared().
+8. **Language**: Always use English for everything (code, comments, docs, UI, etc).
 
 ### Code Template: ViewModel with State Management
+
 ```kotlin
 @HiltViewModel
 class GameViewModel @Inject constructor(
     private val getRandomImageUseCase: GetRandomImageUseCase,
     private val evaluateDrawingUseCase: EvaluateDrawingUseCase
 ) : ViewModel() {
-    
+
     private val _gameState = MutableStateFlow<GameState>(GameState.Loading)
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
-    
+
     private val _uiEvents = Channel<UiEvent>()
     val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
-    
+
     fun startSinglePlayer() {
         viewModelScope.launch {
             try {
@@ -293,7 +316,7 @@ class GameViewModel @Inject constructor(
             }
         }
     }
-    
+
     override fun onCleared() {
         super.onCleared()
         // Always cleanup here
@@ -312,6 +335,7 @@ sealed class GameState {
 ## 🔐 Environment & Credentials
 
 ### Firebase Setup (Required)
+
 1. Create Firebase project at https://console.firebase.google.com
 2. Download `google-services.json` and place in `app/`
 3. Enable: Authentication, Realtime Database, Storage
@@ -322,6 +346,7 @@ sealed class GameState {
    ```
 
 ### Unsplash API Setup (Required)
+
 1. Register at https://unsplash.com/developers
 2. Create app and get `accessKey`
 3. Add to `local.properties`:
@@ -331,6 +356,7 @@ sealed class GameState {
 4. Reference in code: `BuildConfig.UNSPLASH_ACCESS_KEY`
 
 ### TensorFlow Lite Model (Required)
+
 1. Download pre-trained MobileNet v2 `.tflite` from TensorFlow Hub
 2. Place in `app/src/main/assets/models/mobilenet_v2.tflite`
 3. Model size: ~14MB (already lightweight for mobile)
@@ -340,6 +366,7 @@ sealed class GameState {
 ## 📋 Before Committing Code
 
 **Checklist every agent-generated PR must pass:**
+
 1. ✅ Run `./gradlew clean build ktlint detekt lint test` - must exit with code 0
 2. ✅ No ViewModel state in composables (all state from parameters)
 3. ✅ All Firebase calls wrapped in try-catch
@@ -354,38 +381,42 @@ sealed class GameState {
 
 ## 🆘 Troubleshooting Common Issues
 
-| Issue | Solution |
-|-------|----------|
-| `Gradle sync failed: Could not determine the class` | Run `./gradlew clean` and resync |
-| `Firebase initialization failed` | Verify `google-services.json` in `app/` root |
-| `Unsplash API 401 Unauthorized` | Check `UNSPLASH_ACCESS_KEY` in `local.properties` |
-| `TensorFlow model not found` | Ensure `mobilenet_v2.tflite` exists in `app/src/main/assets/models/` |
-| `Emulator: Could not launch` | Increase RAM allocation: Android Studio → Device Manager → Edit → RAM 4GB+ |
-| `Tests timeout` | Increase JVM: `org.gradle.jvmargs=-Xmx4096m` in `gradle.properties` |
-| `Null pointer in drawing canvas` | Verify Bitmap initialization before drawing |
-| `StateFlow not updating UI` | Ensure collecting as `collectAsState()` in Compose, not observing with lifecycle |
+| Issue                                               | Solution                                                                         |
+| --------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `Gradle sync failed: Could not determine the class` | Run `./gradlew clean` and resync                                                 |
+| `Firebase initialization failed`                    | Verify `google-services.json` in `app/` root                                     |
+| `Unsplash API 401 Unauthorized`                     | Check `UNSPLASH_ACCESS_KEY` in `local.properties`                                |
+| `TensorFlow model not found`                        | Ensure `mobilenet_v2.tflite` exists in `app/src/main/assets/models/`             |
+| `Emulator: Could not launch`                        | Increase RAM allocation: Android Studio → Device Manager → Edit → RAM 4GB+       |
+| `Tests timeout`                                     | Increase JVM: `org.gradle.jvmargs=-Xmx4096m` in `gradle.properties`              |
+| `Null pointer in drawing canvas`                    | Verify Bitmap initialization before drawing                                      |
+| `StateFlow not updating UI`                         | Ensure collecting as `collectAsState()` in Compose, not observing with lifecycle |
 
 ---
 
 ## 📖 Important Notes for Agent
 
 **Trust these instructions.** Only search the codebase if:
+
 - Information here conflicts with actual code and needs verification
 - A new technology/library is introduced that isn't mentioned
 - Build steps have changed
 
 **Before exploring**, check:
+
 1. Does this doc answer the question?
 2. Is there a code template above?
 3. Has a command been documented?
 
 **When adding code**, always:
+
 - Follow the directory structure → place in correct layer
 - Use existing patterns (see templates above)
 - Run validation commands before committing
 - Add comments explaining the "why", not the "what"
 
 **Common agent mistakes to avoid**:
+
 - Don't create state in Composables (it dies on recompose)
 - Don't forget to handle errors in viewModelScope launches
 - Don't forget to unsubscribe from Firebase listeners
