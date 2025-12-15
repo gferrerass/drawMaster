@@ -57,3 +57,8 @@ api-rest/migrations/__pycache__/
 # Misc
 *.pem
 *.key
+
+# Ignore IntelliJ / Android Studio project files
+
+# Ignore Copilot IDE metadata
+/android/.idea/copilot*
