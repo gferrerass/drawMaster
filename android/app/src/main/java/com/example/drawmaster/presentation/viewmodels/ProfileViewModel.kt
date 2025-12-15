@@ -1,5 +1,6 @@
 package com.example.drawmaster.presentation.viewmodels
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.location.Location
 import androidx.lifecycle.AndroidViewModel
@@ -45,6 +46,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    @SuppressLint("MissingPermission")
     private suspend fun getCurrentLocation(): Location? = suspendCancellableCoroutine { cont ->
         try {
             val task = fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)

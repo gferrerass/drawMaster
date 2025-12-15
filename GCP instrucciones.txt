@@ -1,0 +1,34 @@
+
+Base de datos MySQL 8.0:
+drawmaster-db
+Contraseña: Holahola123%
+
+Usuario: drawuser
+Contraseña: Holahola123%
+
+Nombre de la conexión de la instancia:
+drawmaster-481318:europe-west8:drawmaster-db
+
+Ruta de acceso al repositorio:
+europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo
+
+Comando para docker (cambiar lo de v2):
+docker build -t europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo/drawmaster-api:v2 .
+docker push europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo/drawmaster-api:v2
+
+Comando para deploy (cambiar lo de v2)
+gcloud run deploy drawmaster-api --image europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo/drawmaster-api:v2 --platform managed --region europe-west8 --port 5000 --allow-unauthenticated --add-cloudsql-instances drawmaster-481318:europe-west8:drawmaster-db --set-env-vars GCS_BUCKET="drawmasters-avatars",DATABASE_URL="mysql+pymysql://drawuser:Holahola123%25@127.0.0.1:3306/drawmaster",SECRET_KEY="0123456789"
+
+
+URL del servicio:
+https://drawmaster-api-366945740310.europe-west8.run.app
+
+Comprobar con curl https://drawmaster-api-366945740310.europe-west8.run.app/health
+
+# 1. Crea el Job de Cloud Run (usando un nombre único basado en la fecha)
+JOB_NAME="drawmaster-migrate-$(date +%s)"
+
+Migrar:
+gcloud run jobs create drawmaster-migrate --image europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo/drawmaster-api:v2 --region europe-west8 --add-cloudsql-instances drawmaster-481318:europe-west8:drawmaster-db --set-env-vars GCS_BUCKET="drawmasters-avatars",DATABASE_URL="mysql+pymysql://drawuser:Holahola123%25@127.0.0.1:3306/drawmaster",SECRET_KEY="0123456789" --command flask -- 'db' 'upgrade'
+
+gcloud run jobs execute drawmaster-migrate --region europe-west8

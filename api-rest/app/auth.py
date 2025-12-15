@@ -10,10 +10,11 @@ def init_firebase():
     global firebase_app
     if firebase_app is not None:
         return
-    cred_path = Config.FIREBASE_CREDENTIALS
-    if cred_path:
-        cred = credentials.Certificate(cred_path)
+    try:
+        cred = credentials.ApplicationDefault()
         firebase_app = initialize_app(cred)
+    except Exception as e:
+        print(f"Error initializing Firebase with ADC: {e}") 
 
 def requires_auth(func):
     @wraps(func)

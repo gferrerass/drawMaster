@@ -1,4 +1,5 @@
 import logging
+from app.models import *
 from logging.config import fileConfig
 
 from flask import current_app
