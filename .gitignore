@@ -40,6 +40,7 @@ htmlcov/
 # Local secrets / env files
 .env
 .env.*
+api-rest/draw-master-d1ba0-firebase-adminsdk-*.json
 
 # Android / Gradle (project contains an Android module)
 android/local.properties

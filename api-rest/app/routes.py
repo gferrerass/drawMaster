@@ -3,8 +3,7 @@ import os
 from flask import Blueprint, current_app, request, jsonify, g
 from . import db
 from .models import UserProfile, Friend, GameRecord
-from .auth import requires_auth
-from .storage import GCSClient
+from .auth import requires_auth, init_firebase, firebase_auth
 from .models import FriendRequest
 from datetime import datetime
 
@@ -42,37 +41,6 @@ def get_my_profile():
     return jsonify(profile.to_dict())
 
 
-@bp.route('/profiles/me/avatar', methods=['POST'])
-@requires_auth
-def upload_avatar():
-    if 'file' not in request.files:
-        return jsonify({'error': 'no file part'}), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'no selected file'}), 400
-
-    # upload to GCS if configured
-    bucket = os.getenv('GCS_BUCKET')
-    if not bucket:
-        return jsonify({'error': 'GCS_BUCKET not configured'}), 500
-
-    client = GCSClient(bucket)
-    # destination name: avatars/<uid>/<filename>
-    uid = g.user.get('uid')
-    dest_name = f"avatars/{uid}/{file.filename}"
-    public_url = client.upload_file(file.stream, dest_name, content_type=file.mimetype)
-
-    # update profile
-    profile = UserProfile.query.filter_by(uid=uid).first()
-    if not profile:
-        profile = UserProfile(uid=uid)
-        db.session.add(profile)
-    profile.avatar_url = public_url
-    db.session.commit()
-
-    return jsonify({'avatar_url': public_url})
-
-
 @bp.route('/games', methods=['POST'])
 @requires_auth
 def post_game():
@@ -96,8 +64,18 @@ def post_game():
 def send_friend_request():
     data = request.json or {}
     to_uid = data.get('to_uid')
-    if not to_uid:
-        return jsonify({'error': 'to_uid required'}), 400
+    to_email = data.get('to_email')
+    if not to_uid and not to_email:
+        return jsonify({'error': 'to_uid or to_email required'}), 400
+
+    # If client provided an email, resolve it to a Firebase UID
+    if to_email and not to_uid:
+        try:
+            init_firebase()
+            user = firebase_auth.get_user_by_email(to_email)
+            to_uid = user.uid
+        except Exception as e:
+            return jsonify({'error': 'user with provided email not found', 'details': str(e)}), 404
     from_uid = g.user.get('uid')
     if from_uid == to_uid:
         return jsonify({'error': 'cannot friend yourself'}), 400
@@ -176,5 +154,5 @@ def list_friends():
     for f in friends:
         # try to include display name if profile exists
         p = UserProfile.query.filter_by(uid=f.friend_uid).first()
-        result.append({'friend_uid': f.friend_uid, 'display_name': p.display_name if p else None, 'avatar_url': p.avatar_url if p else None})
+        result.append({'friend_uid': f.friend_uid, 'display_name': p.display_name if p else None})
     return jsonify({'friends': result})

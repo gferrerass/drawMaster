@@ -23,12 +23,16 @@ services:
       DATABASE_URL: mysql+pymysql://drawuser:drawpass@db:3306/drawmaster
       FLASK_APP: run.py
       FLASK_ENV: development
+      # point to mounted service account inside the container
+      FIREBASE_CREDENTIALS: /secrets/firebase.json
     depends_on:
       - db
     ports:
       - "5000:5000"
     volumes:
       - ./api-rest:/app
+      # mount local service account JSON into container
+      - ./draw-master-d1ba0-firebase-adminsdk-fbsvc-7aa7eac6f3.json:/secrets/firebase.json:ro
 
 volumes:
   db_data:

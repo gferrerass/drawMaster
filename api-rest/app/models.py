@@ -6,7 +6,6 @@ class UserProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     uid = db.Column(db.String(128), unique=True, nullable=False)  # Firebase uid
     display_name = db.Column(db.String(128))
-    avatar_url = db.Column(db.String(512))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -14,7 +13,6 @@ class UserProfile(db.Model):
             'id': self.id,
             'uid': self.uid,
             'display_name': self.display_name,
-            'avatar_url': self.avatar_url,
             'created_at': self.created_at.isoformat()
         }
 
