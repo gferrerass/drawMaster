@@ -32,7 +32,7 @@ services:
     volumes:
       - ./api-rest:/app
       # mount local service account JSON into container
-      - ./draw-master-d1ba0-firebase-adminsdk-fbsvc-7aa7eac6f3.json:/secrets/firebase.json:ro
+      - ./api-rest/draw-master-d1ba0-firebase-adminsdk-fbsvc-7aa7eac6f3.json:/secrets/firebase.json:ro
 
 volumes:
   db_data:

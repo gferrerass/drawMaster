@@ -115,6 +115,12 @@ fun MainScreen(
                         image = painterResource(id = R.drawable.multiplayer),
                         onClick = { viewModel.onMultiplayerClicked(navController) }
                     )
+                    CustomButton(
+                        name = "Friend Requests",
+                        description = "View and accept requests",
+                        image = painterResource(id = R.drawable.profile),
+                        onClick = { navController.navigate("friend_requests") }
+                    )
                 }
             }
         }

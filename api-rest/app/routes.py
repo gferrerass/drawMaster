@@ -81,11 +81,17 @@ def send_friend_request():
         return jsonify({'error': 'cannot friend yourself'}), 400
 
     # check existing pending or accepted
+    # check existing pending or accepted in same direction
     existing = FriendRequest.query.filter_by(from_uid=from_uid, to_uid=to_uid).first()
     if existing and existing.status == 'pending':
         return jsonify({'error': 'request already pending'}), 400
     if existing and existing.status == 'accepted':
         return jsonify({'error': 'already friends'}), 400
+
+    # check if there is a pending request in the opposite direction
+    reverse = FriendRequest.query.filter_by(from_uid=to_uid, to_uid=from_uid, status='pending').first()
+    if reverse:
+        return jsonify({'error': 'friend request already exists with that person'}), 400
 
     fr = FriendRequest(from_uid=from_uid, to_uid=to_uid, status='pending')
     db.session.add(fr)
@@ -142,6 +148,28 @@ def accept_friend_request():
     return jsonify(fr.to_dict())
 
 
+@bp.route('/friends/reject', methods=['POST'])
+@requires_auth
+def reject_friend_request():
+    data = request.json or {}
+    req_id = data.get('request_id')
+    if not req_id:
+        return jsonify({'error': 'request_id required'}), 400
+    uid = g.user.get('uid')
+    fr = FriendRequest.query.get(req_id)
+    if not fr:
+        return jsonify({'error': 'request not found'}), 404
+    if fr.to_uid != uid:
+        return jsonify({'error': 'not authorized to reject this request'}), 403
+    if fr.status != 'pending':
+        return jsonify({'error': 'request already responded'}), 400
+
+    fr.status = 'rejected'
+    fr.responded_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({'status': 'rejected', 'id': fr.id})
+
+
 @bp.route('/friends', methods=['GET'])
 @requires_auth
 def list_friends():
@@ -154,5 +182,53 @@ def list_friends():
     for f in friends:
         # try to include display name if profile exists
         p = UserProfile.query.filter_by(uid=f.friend_uid).first()
-        result.append({'friend_uid': f.friend_uid, 'display_name': p.display_name if p else None})
+        email = None
+        try:
+            init_firebase()
+            user = firebase_auth.get_user(f.friend_uid)
+            email = user.email
+        except Exception:
+            pass
+        result.append({'friend_uid': f.friend_uid, 'email': email, 'display_name': p.display_name if p else None})
     return jsonify({'friends': result})
+
+
+@bp.route('/friends/requests', methods=['GET'])
+@requires_auth
+def list_friend_requests():
+    uid = g.user.get('uid')
+    # pending requests where current user is the recipient
+    reqs = FriendRequest.query.filter_by(to_uid=uid, status='pending').all()
+    out = []
+    for r in reqs:
+        p = UserProfile.query.filter_by(uid=r.from_uid).first()
+        # try to get email from Firebase as fallback
+        email = None
+        try:
+            init_firebase()
+            user = firebase_auth.get_user(r.from_uid)
+            email = user.email
+        except Exception:
+            pass
+        out.append({'id': r.id, 'from_uid': r.from_uid, 'from_email': email, 'display_name': p.display_name if p else None, 'created_at': r.created_at.isoformat() if r.created_at else None})
+    return jsonify({'requests': out})
+
+
+@bp.route('/friends/requests/sent', methods=['GET'])
+@requires_auth
+def list_sent_friend_requests():
+    uid = g.user.get('uid')
+    # pending requests where current user is the sender
+    reqs = FriendRequest.query.filter_by(from_uid=uid, status='pending').all()
+    out = []
+    for r in reqs:
+        p = UserProfile.query.filter_by(uid=r.to_uid).first()
+        email = None
+        try:
+            init_firebase()
+            user = firebase_auth.get_user(r.to_uid)
+            email = user.email
+        except Exception:
+            pass
+        out.append({'id': r.id, 'to_uid': r.to_uid, 'to_email': email, 'display_name': p.display_name if p else None, 'created_at': r.created_at.isoformat() if r.created_at else None})
+    return jsonify({'requests': out})

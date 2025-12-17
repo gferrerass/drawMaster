@@ -33,6 +33,9 @@ fun DrawMasterNavHost(
         composable(route = "profile") {
             ProfileScreen(navController = navController)
         }
+        composable(route = "friend_requests") {
+            com.example.drawmaster.presentation.screens.FriendRequestsScreen(navController = navController)
+        }
         composable(route = "select_image") {
             SelectImageScreen(navController = navController)
         }
