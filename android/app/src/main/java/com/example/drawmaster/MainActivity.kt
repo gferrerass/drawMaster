@@ -1,6 +1,8 @@
 package com.example.drawmaster
 
 import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -24,6 +26,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         FirebaseApp.initializeApp(this)
-
     }
+
+
 }

@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import com.example.drawmaster.presentation.components.DrawingCanvas
+import com.example.drawmaster.presentation.components.ShakeDetector
 import com.example.drawmaster.presentation.viewmodels.GameScreenState
 import com.example.drawmaster.presentation.viewmodels.GameViewModel
 import com.example.drawmaster.ui.theme.TealBlue
@@ -30,6 +33,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.example.drawmaster.R
 import com.example.drawmaster.ui.theme.DrawMasterTheme
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,10 +47,26 @@ fun GameScreen(
     val viewModel: GameViewModel = viewModel()
     val gameState = viewModel.gameState.collectAsState().value
     val strokes = viewModel.strokes.collectAsState().value
+    val context = LocalContext.current
+    
+    // Initialising ShakeDetector
+    val shakeDetector = remember {
+        ShakeDetector(context) {
+            viewModel.clearDrawing()
+            Toast.makeText(context, "Shake detected! Erasing canvas", Toast.LENGTH_SHORT).show()
+        }
+    }
 
-    // Launching game when screen appears
     LaunchedEffect(Unit) {
         viewModel.startGame()
+    }
+
+    // Activating/Deactivating shakeDetector when the screen is displayed/hidden
+    DisposableEffect(Unit) {
+        shakeDetector.start()
+        onDispose {
+            shakeDetector.stop()
+        }
     }
 
     Scaffold(
@@ -380,7 +402,7 @@ private fun DrawingControls(
             Slider(
                 value = currentWidth,
                 onValueChange = onWidthChange,
-                valueRange = 1f..10f,
+                valueRange = 5f..20f,
                 steps = 8,
                 modifier = Modifier.height(20.dp),
                 colors = SliderDefaults.colors(

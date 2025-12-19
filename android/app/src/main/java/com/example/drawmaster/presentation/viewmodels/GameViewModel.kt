@@ -1,5 +1,6 @@
 package com.example.drawmaster.presentation.viewmodels
 
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.drawmaster.presentation.components.DrawingStroke
@@ -10,9 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/**
- * Estados posibles durante el flujo de un juego single player.
- */
+// 3 possible states: Loading, Playing and Finished
 sealed class GameScreenState {
     object Loading : GameScreenState()
     data class Playing(
@@ -25,14 +24,6 @@ sealed class GameScreenState {
     ) : GameScreenState()
     data class Error(val message: String) : GameScreenState()
 }
-
-/**
- * ViewModel para GameScreen (single player).
- * Gestiona:
- * - Tiempo límite del juego (30 segundos)
- * - Estado de los strokes dibujados
- * - Transiciones entre states
- */
 class GameViewModel : ViewModel() {
 
     private val _gameState = MutableStateFlow<GameScreenState>(GameScreenState.Loading)
@@ -47,11 +38,11 @@ class GameViewModel : ViewModel() {
     private val _strokeColor = MutableStateFlow(android.graphics.Color.BLACK)
     val strokeColor: StateFlow<Int> = _strokeColor.asStateFlow()
 
-    private val _strokeWidth = MutableStateFlow(3f)
+    private val _strokeWidth = MutableStateFlow(13f)
     val strokeWidth: StateFlow<Float> = _strokeWidth.asStateFlow()
 
     private var timerJob: Job? = null
-    private val totalGameTime = 30 // segundos
+    private val totalGameTime = 60 // seconds
 
     fun startGame(imageName: String = "drawing_challenge") {
         _imageName.value = imageName
@@ -62,7 +53,7 @@ class GameViewModel : ViewModel() {
     fun onDrawingChanged(newStrokes: List<DrawingStroke>) {
         _strokes.value = newStrokes
         
-        // Actualizar estado si es la primera vez que dibuja
+        // Updating state on the first stroke
         val currentState = _gameState.value
         if (currentState is GameScreenState.Playing && !currentState.hasDrawn && newStrokes.isNotEmpty()) {
             _gameState.value = GameScreenState.Playing(
@@ -120,7 +111,7 @@ class GameViewModel : ViewModel() {
                 )
                 delay(1000)
             }
-            // Tiempo se acabó
+            // Time's up
             finishGame(score = 0f)
         }
     }
