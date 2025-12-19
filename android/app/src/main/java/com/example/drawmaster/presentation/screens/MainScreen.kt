@@ -22,7 +22,7 @@ import com.example.drawmaster.presentation.viewmodels.AuthViewModel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AccountCircle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,13 +38,16 @@ fun MainScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("DrawMaster", color = Color.White)
+                        Text(
+                            text = "DrawMaster",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge
+                        )
                         val displayText = currentUser?.displayName ?: currentUser?.email
                         displayText?.let { name ->
                             Text(
@@ -59,7 +62,7 @@ fun MainScreen(
                     IconButton(onClick = { navController.navigate("profile") }) {
                         Icon(
                             imageVector = Icons.Default.AccountCircle,
-                            contentDescription = "Perfil",
+                            contentDescription = "Profile",
                             tint = Color.White
                         )
                     }
@@ -72,13 +75,13 @@ fun MainScreen(
                         }
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ExitToApp,
-                            contentDescription = "Cerrar sesión",
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Log out",
                             tint = Color.White
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = TealBlue
                 )
             )

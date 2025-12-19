@@ -44,27 +44,21 @@ fun ConfirmImageScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
+                title = {
+                    Text("Select Image", color = Color.White)
+                },
                 navigationIcon = {
-                    IconButton(onClick = { viewModel.onChooseDifferentImageClicked(navController) }) {
-                        Image(
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
                             painter = painterResource(id = R.drawable.arrow),
                             contentDescription = "Go Back",
-                            modifier = Modifier
-                                .size(24.dp)
-                                .rotate(180f)
+                            modifier = Modifier.size(24.dp).rotate(180f),
+                            tint = Color.White
                         )
                     }
                 },
-                title = {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Select Image", color = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = TealBlue
                 )
             )

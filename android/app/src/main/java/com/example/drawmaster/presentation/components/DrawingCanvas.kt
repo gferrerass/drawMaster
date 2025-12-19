@@ -6,21 +6,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import android.graphics.Bitmap
+import androidx.compose.foundation.border
 import android.graphics.Canvas as AndroidCanvas
 
 data class DrawingPoint(
@@ -35,38 +34,39 @@ data class DrawingStroke(
 )
 
 /**
- * DrawingCanvas composable que permite dibujar con gestos táctiles.
- * Captura los puntos dibujados y puede generar un Bitmap del dibujo.
- *
- * @param modifier Modifier para personalizar el tamaño y estilo
- * @param strokeColor Color del trazo (por defecto negro)
- * @param strokeWidth Grosor del trazo en dp
- * @param onDrawingChanged Callback cuando el usuario dibuja algo
+@param modifier Modifier to customise size
+@param strokeColor Black by default
+@param strokeWidth
+@param onDrawingChanged Callback when user has drawn something
  */
 @Composable
 fun DrawingCanvas(
     modifier: Modifier = Modifier,
+    strokes: List<DrawingStroke> = emptyList(),
     strokeColor: Color = Color.Black,
     strokeWidth: Float = 3f,
     onDrawingChanged: (List<DrawingStroke>) -> Unit = {}
 ) {
-    val strokes = remember { mutableStateOf<List<DrawingStroke>>(emptyList()) }
+    var strokesState by remember { mutableStateOf<List<DrawingStroke>>(emptyList()) }
     val currentPath = remember { mutableStateOf<List<DrawingPoint>>(emptyList()) }
+
+    LaunchedEffect(strokes) {
+        strokesState = strokes
+    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(400.dp)
             .background(Color.White)
+            .border(1.dp, Color.LightGray)
             .clipToBounds()
             .pointerInput(strokeColor, strokeWidth) {
                 detectDragGestures(
                     onDragStart = { offset ->
-                        // offset es la posición inicial del toque
                         currentPath.value = listOf(DrawingPoint(offset.x, offset.y))
                     },
                     onDrag = { change, _ ->
-                        // change.position es la posición ABSOLUTA del dedo
                         val newPoints = currentPath.value.toMutableList()
                         newPoints.add(DrawingPoint(change.position.x, change.position.y))
                         currentPath.value = newPoints
@@ -74,13 +74,13 @@ fun DrawingCanvas(
                     },
                     onDragEnd = {
                         if (currentPath.value.isNotEmpty()) {
-                            val newStrokes = strokes.value.toMutableList()
+                            val newStrokes = strokesState.toMutableList()
                             newStrokes.add(DrawingStroke(
                                 points = currentPath.value,
                                 color = strokeColor.toArgb(),
                                 width = strokeWidth
                             ))
-                            strokes.value = newStrokes
+                            strokesState = newStrokes
                             onDrawingChanged(newStrokes)
                             currentPath.value = emptyList()
                         }
@@ -88,8 +88,8 @@ fun DrawingCanvas(
                 )
             }
             .drawBehind {
-                // Dibujar strokes completados (cada uno con su propio color y grosor)
-                strokes.value.forEach { stroke ->
+                // Drawing finished strokes
+                strokesState.forEach { stroke ->
                     if (stroke.points.size >= 2) {
                         for (i in 1 until stroke.points.size) {
                             val prevPoint = stroke.points[i - 1]
@@ -106,7 +106,7 @@ fun DrawingCanvas(
                     }
                 }
                 
-                // Dibujar trazo actual mientras se dibuja (con color y grosor actuales)
+                // Drawing current strokes
                 if (currentPath.value.size >= 2) {
                     for (i in 1 until currentPath.value.size) {
                         val prevPoint = currentPath.value[i - 1]
@@ -126,15 +126,12 @@ fun DrawingCanvas(
 }
 
 /**
- * Función para generar un Bitmap a partir de los strokes dibujados.
- * Útil para enviar el dibujo a una API de evaluación.
- *
- * @param strokes Lista de strokes dibujados
- * @param width Ancho del bitmap en píxeles
- * @param height Alto del bitmap en píxeles
- * @param strokeColor Color del trazo (como Int)
- * @param strokeWidth Grosor del trazo
- * @return Bitmap del dibujo, o null si no hay strokes
+@param strokes Array of drawn strokes
+@param width in pixels
+@param height in pixels
+@param strokeColor
+@param strokeWidth
+@return Bitmap
  */
 fun generateBitmapFromStrokes(
     strokes: List<DrawingStroke>,
@@ -148,7 +145,7 @@ fun generateBitmapFromStrokes(
     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = AndroidCanvas(bitmap)
 
-    // Llenar fondo de blanco
+    // Filling up background with solid white colour
     canvas.drawColor(android.graphics.Color.WHITE)
 
     val paint = android.graphics.Paint().apply {
@@ -160,8 +157,8 @@ fun generateBitmapFromStrokes(
         isAntiAlias = true
     }
 
-    // Escalar puntos si es necesario (los puntos están en coordenadas de composable)
-    val canvasWidth = 400 // El DrawingCanvas tiene 400.dp de ancho
+    // Scaling points if necessary (they come in composable coordinates)
+    val canvasWidth = 400 // DrawingCanvas is 400.dp wide
     val scaleX = width.toFloat() / canvasWidth
     val scaleY = height.toFloat() / 400
 
@@ -181,6 +178,5 @@ fun generateBitmapFromStrokes(
             }
         }
     }
-
     return bitmap
 }

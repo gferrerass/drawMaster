@@ -1,17 +1,18 @@
 package com.example.drawmaster.presentation.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -21,25 +22,15 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
-import com.example.drawmaster.R
 import com.example.drawmaster.presentation.components.DrawingCanvas
 import com.example.drawmaster.presentation.viewmodels.GameScreenState
 import com.example.drawmaster.presentation.viewmodels.GameViewModel
 import com.example.drawmaster.ui.theme.TealBlue
-import android.net.Uri
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
+import com.example.drawmaster.R
+import com.example.drawmaster.ui.theme.DrawMasterTheme
 
-/**
- * GameScreen: Pantalla principal donde el usuario dibuja en single player.
- * 
- * Flujo:
- * 1. Se muestra la imagen de referencia
- * 2. El usuario tiene 30 segundos para dibujar
- * 3. Al terminar el tiempo o hacer clic en "Enviar", va a ResultScreen
- *
- * @param navController Para navegación entre pantallas
- * @param imageUriString URI de la imagen capturada que debe replicar
- * @param modifier Para personalización
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameScreen(
@@ -51,7 +42,7 @@ fun GameScreen(
     val gameState = viewModel.gameState.collectAsState().value
     val strokes = viewModel.strokes.collectAsState().value
 
-    // Iniciar el juego cuando la pantalla se monta
+    // Launching game when screen appears
     LaunchedEffect(Unit) {
         viewModel.startGame()
     }
@@ -59,27 +50,11 @@ fun GameScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Image(
-                            painter = painterResource(id = R.drawable.arrow),
-                            contentDescription = "Go Back",
-                            modifier = Modifier
-                                .size(24.dp)
-                                .rotate(180f)
-                        )
-                    }
-                },
+            CenterAlignedTopAppBar(
                 title = {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Draw & Match", color = Color.White)
-                    }
+                    Text("Draw & Match", color = Color.White)
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = TealBlue
                 )
             )
@@ -183,17 +158,14 @@ private fun GamePlayingContent(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Timer prominente
+
         TimerDisplay(timeRemaining)
-
-        // Imagen de referencia (pequeña, arriba)
         ReferenceImageSection(imageUriString)
-
-        // Canvas para dibujar
         DrawingCanvas(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(320.dp),
+            strokes = strokes,
             strokeColor = Color(strokeColor),
             strokeWidth = strokeWidth,
             onDrawingChanged = { newStrokes ->
@@ -201,7 +173,7 @@ private fun GamePlayingContent(
             }
         )
 
-        // Controles de color y grosor
+        // Color and width stroke controls
         DrawingControls(
             currentColor = strokeColor,
             currentWidth = strokeWidth,
@@ -209,16 +181,16 @@ private fun GamePlayingContent(
             onWidthChange = { viewModel.setStrokeWidth(it) }
         )
 
-        // Controles (botones)
+        // Lower screen buttons
         GameControlButtons(
             hasDrawn = hasDrawn,
             onClear = { viewModel.clearDrawing() },
             onUndo = { viewModel.undoLastStroke() },
             onSubmit = {
                 val drawingBitmap = com.example.drawmaster.presentation.components.generateBitmapFromStrokes(
-                    strokes = listOf() // Aquí iría la lista de strokes
+                    strokes = listOf()
                 )
-                // TODO: Llamar a API para evaluar
+                // TODO: Call API to evaluate
                 viewModel.finishGame(score = 85f)
             }
         )
@@ -257,28 +229,33 @@ private fun ReferenceImageSection(imageUriString: String?) {
             fontSize = 12.sp,
             color = Color.Gray
         )
-        
-        if (imageUriString != null) {
-            Image(
-                painter = rememberAsyncImagePainter(imageUriString),
-                contentDescription = "Reference Image",
-                modifier = Modifier
-                    .fillMaxWidth(0.6f)
-                    .height(100.dp)
-                    .background(Color.LightGray),
-                contentScale = ContentScale.Crop
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, Color.LightGray),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White
             )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.6f)
-                    .height(100.dp)
-                    .background(Color.LightGray),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No image provided", color = Color.Gray)
+        ) {
+            if (imageUriString != null) {
+                Image(
+                    painter = rememberAsyncImagePainter(imageUriString),
+                    contentDescription = "Reference Image",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.mountains),
+                    contentDescription = "Placeholder Image",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
             }
         }
+
     }
 }
 
@@ -352,7 +329,7 @@ private fun DrawingControls(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Selector de colores
+        // Color selector
         Row(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -388,7 +365,7 @@ private fun DrawingControls(
             }
         }
 
-        // Slider de grosor (más compacto)
+        // Width selector slider
         Column(
             modifier = Modifier.width(120.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -412,5 +389,14 @@ private fun DrawingControls(
                 )
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun GameScreenPreview() {
+    val navController = rememberNavController()
+    DrawMasterTheme {
+        GameScreen(navController = navController, imageUriString = null)
     }
 }
