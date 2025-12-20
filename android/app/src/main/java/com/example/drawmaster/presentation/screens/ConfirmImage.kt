@@ -129,9 +129,6 @@ fun ConfirmImageScreen(
     )
 }
 
-
-
-
 @Preview(showBackground = true)
 @Composable
 fun ConfirmImageScreenPreview() {

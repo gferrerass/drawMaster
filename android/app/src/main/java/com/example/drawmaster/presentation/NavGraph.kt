@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.drawmaster.presentation.screens.ConfirmImageScreen
+import com.example.drawmaster.presentation.screens.GameOverScreen
 import com.example.drawmaster.presentation.screens.LoginScreen
 import com.example.drawmaster.presentation.screens.MainScreen
 import com.example.drawmaster.presentation.screens.SelectImageScreen
@@ -63,6 +64,23 @@ fun DrawMasterNavHost(
                 navController = navController,
                 imageUriString = imageUri
             )
+        }
+        composable(route = "game_over_screen/{drawingUri}/{originalUri}",
+            arguments = listOf(
+                navArgument("drawingUri") {
+                    type = NavType.StringType
+                    nullable = true
+                },
+                navArgument("originalUri") {
+                    type = NavType.StringType
+                    nullable = true
+                }
+
+            )
+        ) { backStackEntry ->
+            val drawingUri = backStackEntry.arguments?.getString("drawingUri")
+            val originalUri = backStackEntry.arguments?.getString("originalUri")
+            GameOverScreen(navController = navController, drawingUriString = drawingUri, originalUriString = originalUri)
         }
     }
 }

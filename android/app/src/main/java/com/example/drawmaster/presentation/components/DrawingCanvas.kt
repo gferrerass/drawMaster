@@ -1,5 +1,6 @@
 package com.example.drawmaster.presentation.components
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
@@ -17,9 +18,15 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import android.graphics.Bitmap
+import android.net.Uri
 import androidx.compose.foundation.border
+import java.io.File
+import java.io.FileOutputStream
+import java.util.UUID
 import android.graphics.Canvas as AndroidCanvas
 
 data class DrawingPoint(
@@ -38,6 +45,7 @@ data class DrawingStroke(
 @param strokeColor Black by default
 @param strokeWidth
 @param onDrawingChanged Callback when user has drawn something
+@param onSizeChanged Callback when canvas size changes (width, height in pixels)
  */
 @Composable
 fun DrawingCanvas(
@@ -45,7 +53,8 @@ fun DrawingCanvas(
     strokes: List<DrawingStroke> = emptyList(),
     strokeColor: Color = Color.Black,
     strokeWidth: Float = 3f,
-    onDrawingChanged: (List<DrawingStroke>) -> Unit = {}
+    onDrawingChanged: (List<DrawingStroke>) -> Unit = {},
+    onSizeChanged: (Int, Int) -> Unit = { _, _ -> }
 ) {
     var strokesState by remember { mutableStateOf<List<DrawingStroke>>(emptyList()) }
     val currentPath = remember { mutableStateOf<List<DrawingPoint>>(emptyList()) }
@@ -61,6 +70,9 @@ fun DrawingCanvas(
             .background(Color.White)
             .border(1.dp, Color.LightGray)
             .clipToBounds()
+            .onSizeChanged { size ->
+                onSizeChanged(size.width, size.height)
+            }
             .pointerInput(strokeColor, strokeWidth) {
                 detectDragGestures(
                     onDragStart = { offset ->
@@ -127,56 +139,83 @@ fun DrawingCanvas(
 
 /**
 @param strokes Array of drawn strokes
-@param width in pixels
-@param height in pixels
-@param strokeColor
-@param strokeWidth
-@return Bitmap
+@param width in pixels (should match canvas width)
+@param height in pixels (should match canvas height)
+@return Bitmap with exact canvas dimensions
  */
 fun generateBitmapFromStrokes(
     strokes: List<DrawingStroke>,
-    width: Int = 512,
-    height: Int = 512,
-    strokeColor: Int = android.graphics.Color.BLACK,
-    strokeWidth: Float = 3f
+    width: Int,
+    height: Int,
 ): Bitmap? {
-    if (strokes.isEmpty()) return null
-
+    if (width <= 0 || height <= 0) return null
     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = AndroidCanvas(bitmap)
 
-    // Filling up background with solid white colour
+    // Painting the background with solid white
     canvas.drawColor(android.graphics.Color.WHITE)
 
-    val paint = android.graphics.Paint().apply {
-        color = strokeColor
-        style = android.graphics.Paint.Style.STROKE
-        this.strokeWidth = strokeWidth
-        strokeCap = android.graphics.Paint.Cap.ROUND
-        strokeJoin = android.graphics.Paint.Join.ROUND
-        isAntiAlias = true
-    }
-
-    // Scaling points if necessary (they come in composable coordinates)
-    val canvasWidth = 400 // DrawingCanvas is 400.dp wide
-    val scaleX = width.toFloat() / canvasWidth
-    val scaleY = height.toFloat() / 400
-
     strokes.forEach { stroke ->
+        val paint = android.graphics.Paint().apply {
+            color = stroke.color
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = stroke.width
+            strokeCap = android.graphics.Paint.Cap.ROUND
+            strokeJoin = android.graphics.Paint.Join.ROUND
+            isAntiAlias = true
+        }
         if (stroke.points.size > 1) {
             for (i in 1 until stroke.points.size) {
                 val prevPoint = stroke.points[i - 1]
                 val currentPoint = stroke.points[i]
-
                 canvas.drawLine(
-                    prevPoint.x * scaleX,
-                    prevPoint.y * scaleY,
-                    currentPoint.x * scaleX,
-                    currentPoint.y * scaleY,
+                    prevPoint.x,
+                    prevPoint.y,
+                    currentPoint.x,
+                    currentPoint.y,
                     paint
                 )
             }
         }
     }
     return bitmap
+}
+
+
+fun saveBitmapToTempJpeg(context: Context, bitmap: Bitmap): File? {
+    // Creating temporary image file
+    val filename = "temp_drawing_${UUID.randomUUID()}.jpg"
+    val file = File(context.cacheDir, filename)
+
+    return try {
+        val out = FileOutputStream(file)
+        // Compressing image to JPEG format
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        out.flush()
+        out.close()
+        // Returning image file
+        file
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
+fun returnDrawing(context: Context, strokes: List<DrawingStroke>, canvasWidth: Int, canvasHeight: Int): String? {
+    // Generating bitmap with exact canvas dimensions
+    val bitmap = generateBitmapFromStrokes(strokes, canvasWidth, canvasHeight) ?: return null
+
+    // Saving file
+    val file = try {
+        saveBitmapToTempJpeg(context, bitmap)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+
+    // Returning URI as a String
+    return file?.let {
+        val uri = Uri.fromFile(it)
+        uri.toString()
+    }
 }

@@ -1,8 +1,9 @@
 package com.example.drawmaster.presentation.viewmodels
 
-import android.widget.Toast
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.NavHostController
 import com.example.drawmaster.presentation.components.DrawingStroke
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -18,10 +19,7 @@ sealed class GameScreenState {
         val timeRemaining: Int,
         val hasDrawn: Boolean = false
     ) : GameScreenState()
-    data class Finished(
-        val score: Float,
-        val isHighScore: Boolean = false
-    ) : GameScreenState()
+    object Finished : GameScreenState()
     data class Error(val message: String) : GameScreenState()
 }
 class GameViewModel : ViewModel() {
@@ -40,6 +38,12 @@ class GameViewModel : ViewModel() {
 
     private val _strokeWidth = MutableStateFlow(13f)
     val strokeWidth: StateFlow<Float> = _strokeWidth.asStateFlow()
+
+    private val _canvasWidth = MutableStateFlow(0)
+    val canvasWidth: StateFlow<Int> = _canvasWidth.asStateFlow()
+
+    private val _canvasHeight = MutableStateFlow(0)
+    val canvasHeight: StateFlow<Int> = _canvasHeight.asStateFlow()
 
     private var timerJob: Job? = null
     private val totalGameTime = 60 // seconds
@@ -91,14 +95,21 @@ class GameViewModel : ViewModel() {
         _strokeWidth.value = width
     }
 
-    fun finishGame(score: Float = 0f) {
-        timerJob?.cancel()
-        _gameState.value = GameScreenState.Finished(
-            score = score,
-            isHighScore = false // TODO: Implementar lógica de high scores
-        )
+    fun setCanvasSize(width: Int, height: Int) {
+        _canvasWidth.value = width
+        _canvasHeight.value = height
     }
 
+    fun finishGame(score: Float = 0f) {
+        timerJob?.cancel()
+        _gameState.value = GameScreenState.Finished
+    }
+
+    fun navigatetoGameOverScreen(navController: NavHostController, drawingURI: String, originalURI: String) {
+        val encodedUri = Uri.encode(drawingURI)
+        val encodedOriginalUri = Uri.encode(originalURI)
+        navController.navigate("game_over_screen/$encodedUri/$encodedOriginalUri")
+    }
     private fun startTimer() {
         timerJob?.cancel()
         _gameState.value = GameScreenState.Playing(timeRemaining = totalGameTime)

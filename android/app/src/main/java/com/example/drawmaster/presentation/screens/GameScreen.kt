@@ -33,9 +33,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.example.drawmaster.R
 import com.example.drawmaster.ui.theme.DrawMasterTheme
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import com.example.drawmaster.presentation.components.returnDrawing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,8 +47,10 @@ fun GameScreen(
     val viewModel: GameViewModel = viewModel()
     val gameState = viewModel.gameState.collectAsState().value
     val strokes = viewModel.strokes.collectAsState().value
+    val canvasWidth = viewModel.canvasWidth.collectAsState().value
+    val canvasHeight = viewModel.canvasHeight.collectAsState().value
     val context = LocalContext.current
-    
+
     // Initialising ShakeDetector
     val shakeDetector = remember {
         ShakeDetector(context) {
@@ -93,7 +95,6 @@ fun GameScreen(
                         CircularProgressIndicator()
                     }
                 }
-
                 is GameScreenState.Playing -> {
                     GamePlayingContent(
                         imageUriString = imageUriString,
@@ -105,42 +106,15 @@ fun GameScreen(
                         navController = navController
                     )
                 }
-
                 is GameScreenState.Finished -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                            .background(Color.White),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "Time's Up!",
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TealBlue
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(
-                                onClick = {
-                                    val drawingBitmap = com.example.drawmaster.presentation.components.generateBitmapFromStrokes(
-                                        strokes = strokes
-                                    )
-                                    // TODO: Navegar a ResultScreen con la puntuación
-                                    navController.popBackStack()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = TealBlue)
-                            ) {
-                                Text("Go Back")
-                            }
+                    // Ensuring that canvas dimensions are available before generating the bitmap
+                    if (canvasWidth > 0 && canvasHeight > 0) {
+                        val drawingFileURI = returnDrawing(context, strokes, canvasWidth, canvasHeight)
+                        if (drawingFileURI != null && imageUriString != null) {
+                            viewModel.navigatetoGameOverScreen(navController, drawingFileURI, imageUriString)
                         }
                     }
                 }
-
                 is GameScreenState.Error -> {
                     Box(
                         modifier = Modifier
@@ -192,6 +166,9 @@ private fun GamePlayingContent(
             strokeWidth = strokeWidth,
             onDrawingChanged = { newStrokes ->
                 viewModel.onDrawingChanged(newStrokes)
+            },
+            onSizeChanged = { width, height ->
+                viewModel.setCanvasSize(width, height)
             }
         )
 
@@ -209,11 +186,7 @@ private fun GamePlayingContent(
             onClear = { viewModel.clearDrawing() },
             onUndo = { viewModel.undoLastStroke() },
             onSubmit = {
-                val drawingBitmap = com.example.drawmaster.presentation.components.generateBitmapFromStrokes(
-                    strokes = listOf()
-                )
-                // TODO: Call API to evaluate
-                viewModel.finishGame(score = 85f)
+                viewModel.finishGame()
             }
         )
     }
@@ -364,7 +337,7 @@ private fun DrawingControls(
                 android.graphics.Color.rgb(255, 165, 0),
                 android.graphics.Color.rgb(128, 0, 128)
             )
-            
+
             colors.forEach { color ->
                 Box(
                     modifier = Modifier
@@ -398,7 +371,7 @@ private fun DrawingControls(
                 fontWeight = FontWeight.Medium,
                 color = Color.Gray
             )
-            
+
             Slider(
                 value = currentWidth,
                 onValueChange = onWidthChange,
