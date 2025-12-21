@@ -5,6 +5,18 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+import java.util.Properties
+import java.io.File
+
+val localProps = Properties().apply {
+    val file = File(rootDir, "local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun prop(name: String, default: String): String = localProps.getProperty(name, default)
+
+val apiBaseUrl = prop("api_base_url", "http://10.0.2.2:5000/")
+
 android {
     namespace = "com.example.drawmaster"
     compileSdk {
@@ -29,6 +41,17 @@ android {
                 "proguard-rules.pro"
             )
         }
+        debug {
+            // Base URL overridable via local.properties api_base_url
+            buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        }
+    }
+
+    // Ensure API_BASE_URL exists for all build types (release included)
+    buildTypes.all {
+        if (!buildConfigFields.containsKey("API_BASE_URL")) {
+            buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -39,6 +62,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

@@ -4,10 +4,11 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import com.example.drawmaster.BuildConfig
 
 object ApiClient {
-    // For Android emulator, host machine localhost is 10.0.2.2
-    private const val BASE_URL = "http://10.0.2.2:5000/"
+    // Base URL is provided per build type via BuildConfig.API_BASE_URL
+    private const val BASE_URL = BuildConfig.API_BASE_URL
 
     private val logging = HttpLoggingInterceptor().apply {
         // BODY can attempt to read response bodies and may fail if the server

@@ -16,14 +16,44 @@ Comando para docker (cambiar lo de v2):
 docker build -t europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo/drawmaster-api:v2 .
 docker push europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo/drawmaster-api:v2
 
-Comando para deploy (cambiar lo de v2)
-gcloud run deploy drawmaster-api --image europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo/drawmaster-api:v2 --platform managed --region europe-west8 --port 5000 --allow-unauthenticated --add-cloudsql-instances drawmaster-481318:europe-west8:drawmaster-db --set-env-vars GCS_BUCKET="drawmasters-avatars",DATABASE_URL="mysql+pymysql://drawuser:Holahola123%25@127.0.0.1:3306/drawmaster",SECRET_KEY="0123456789"
+Comando para deploy (cambiar lo de v2 a la version que toque):
+# 1. Definir los componentes de la conexión
+$INSTANCE = "drawmaster-481318:europe-west8:drawmaster-db"
+$USER = "drawuser"
+$PASS = "Holahola123%25"
+$DB = "drawmaster"
 
+# 2. Construir la URL de base de datos (usando el socket que funcionó en el Job)
+$DB_URL = "mysql+pymysql://${USER}:${PASS}@localhost/${DB}?unix_socket=/cloudsql/${INSTANCE}"
+
+# 3. Empaquetar todas las variables en una sola cadena separada por comas
+# IMPORTANTE: Sin espacios después de las comas
+$ENV_VARS = "GCS_BUCKET=drawmasters-avatars,DATABASE_URL=$DB_URL,SECRET_KEY=0123456789,FLASK_APP=run.py,FIREBASE_CREDENTIALS=/app/draw-master-d1ba0-firebase-adminsdk-fbsvc-7aa7eac6f3.json"
+
+# 4. Ejecutar el deploy usando la variable entre comillas
+gcloud run deploy drawmaster-api `
+  --image europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo/drawmaster-api:v3 `
+  --platform managed `
+  --region europe-west8 `
+  --port 5000 `
+  --allow-unauthenticated `
+  --add-cloudsql-instances $INSTANCE `
+  --set-env-vars "$ENV_VARS"
 
 URL del servicio:
 https://drawmaster-api-366945740310.europe-west8.run.app
 
 Comprobar con curl https://drawmaster-api-366945740310.europe-west8.run.app/health
+
+Verificación del deploy (PowerShell):
+# Ver env vars efectivas del servicio
+gcloud run services describe drawmaster-api --region europe-west8 --format "table(spec.template.spec.containers[0].env.name,spec.template.spec.containers[0].env.value)"
+
+# Obtener URL y chequear /health
+$url = gcloud run services describe drawmaster-api --region europe-west8 --format "value(status.url)"; Write-Output "Service URL: $url"; Invoke-WebRequest -UseBasicParsing "$url/health" | Select-Object -ExpandProperty StatusCode
+
+# Logs recientes para detectar errores
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=drawmaster-api" --project=drawmaster-481318 --limit=50 --freshness=1h --format "value(textPayload)"
 
 # 1. Crea el Job de Cloud Run (usando un nombre único basado en la fecha)
 JOB_NAME="drawmaster-migrate-$(date +%s)"
