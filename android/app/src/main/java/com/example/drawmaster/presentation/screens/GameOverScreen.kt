@@ -25,11 +25,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.drawmaster.R
 import com.example.drawmaster.presentation.components.TextButton
+import com.example.drawmaster.presentation.viewmodels.GameOverViewModel
+import com.example.drawmaster.presentation.viewmodels.GameViewModel
 import com.example.drawmaster.ui.theme.DrawMasterTheme
 import com.example.drawmaster.ui.theme.TealBlue
 
@@ -44,6 +47,7 @@ fun GameOverScreen(
     originalUriString: String?,
     modifier: Modifier = Modifier
 ) {
+    val viewModel: GameOverViewModel = viewModel()
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -96,7 +100,9 @@ fun GameOverScreen(
                 backgroundColor = TealBlue,
                 borderColor = TealBlue,
                 fontColor = Color.White,
-                onClick = { }
+                onClick = {
+                    viewModel.navigatetoResults(navController)
+                    }
             )
         }
     }
@@ -107,6 +113,6 @@ fun GameOverScreen(
 fun GameOverScreenPreview() {
     val navController = rememberNavController()
     DrawMasterTheme {
-        ConfirmImageScreen(navController = navController, imageUriString = null)
+        GameOverScreen(navController = navController, drawingUriString = null, originalUriString = null)
     }
 }

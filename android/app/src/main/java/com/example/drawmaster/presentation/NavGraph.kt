@@ -13,6 +13,7 @@ import com.example.drawmaster.presentation.screens.LoginScreen
 import com.example.drawmaster.presentation.screens.MainScreen
 import com.example.drawmaster.presentation.screens.SelectImageScreen
 import com.example.drawmaster.presentation.screens.ProfileScreen
+import com.example.drawmaster.presentation.screens.ResultsScreen
 
 
 @Composable
@@ -81,6 +82,17 @@ fun DrawMasterNavHost(
             val drawingUri = backStackEntry.arguments?.getString("drawingUri")
             val originalUri = backStackEntry.arguments?.getString("originalUri")
             GameOverScreen(navController = navController, drawingUriString = drawingUri, originalUriString = originalUri)
+        }
+        composable(route = "results_screen/{score}",
+            arguments = listOf(
+                navArgument("score") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                }
+            )
+        ) { backStackEntry ->
+            val calcscore = backStackEntry.arguments?.getInt("score") ?: 0
+            ResultsScreen(navController = navController, score = calcscore)
         }
     }
 }
