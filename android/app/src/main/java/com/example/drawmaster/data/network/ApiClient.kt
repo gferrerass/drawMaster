@@ -10,7 +10,9 @@ object ApiClient {
     private const val BASE_URL = "http://10.0.2.2:5000/"
 
     private val logging = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        // BODY can attempt to read response bodies and may fail if the server
+        // closes the connection early. Use BASIC to avoid reading bodies here.
+        level = HttpLoggingInterceptor.Level.BASIC
     }
 
     /** Create a Retrofit instance that injects Authorization header using the provided TokenProvider. */

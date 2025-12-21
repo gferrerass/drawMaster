@@ -10,12 +10,17 @@ class FriendRepositoryImpl(private val tokenProvider: TokenProvider) : FriendRep
     private val api = ApiClient.createRetrofit(tokenProvider).create(FriendApi::class.java)
 
     override suspend fun getPendingRequests(): List<FriendRequest> {
-        // Retrofit doesn't add auth header automatically here; use OkHttp interceptor for production.
-        val resp = api.getFriendRequests()
-        return resp.requests.map { r ->
-            // prefer display name, then email; do not expose UID in UI
-            val display = r.display_name ?: r.from_email
-            FriendRequest(r.id, /* fromUid */ r.from_uid, /* toUid */ "", "pending", r.created_at, display)
+        return try {
+            // Retrofit doesn't add auth header automatically here; use OkHttp interceptor for production.
+            val resp = api.getFriendRequests()
+            resp.requests.map { r ->
+                // prefer display name, then email; do not expose UID in UI
+                val display = r.display_name ?: r.from_email
+                FriendRequest(r.id, /* fromUid */ r.from_uid, /* toUid */ "", "pending", r.created_at, display)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FriendRepo", "getPendingRequests failed", e)
+            emptyList()
         }
     }
 
@@ -62,19 +67,29 @@ class FriendRepositoryImpl(private val tokenProvider: TokenProvider) : FriendRep
     }
 
     override suspend fun getOutgoingRequests(): List<FriendRequest> {
-        val resp = api.getSentFriendRequests()
-        return resp.requests.map { r ->
-            // prefer display name, then email; do not expose UID in UI
-            val display = r.display_name ?: r.to_email
-            FriendRequest(r.id, /* fromUid */ "", /* toUid */ r.to_uid ?: "", "pending", r.created_at, display)
+        return try {
+            val resp = api.getSentFriendRequests()
+            resp.requests.map { r ->
+                // prefer display name, then email; do not expose UID in UI
+                val display = r.display_name ?: r.to_email
+                FriendRequest(r.id, /* fromUid */ "", /* toUid */ r.to_uid ?: "", "pending", r.created_at, display)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FriendRepo", "getOutgoingRequests failed", e)
+            emptyList()
         }
     }
 
     override suspend fun getFriends(): List<com.example.drawmaster.domain.model.Friend> {
-        val resp = api.getFriends()
-        return resp.friends.map { f ->
-            val display = f.display_name ?: f.email
-            com.example.drawmaster.domain.model.Friend(f.friend_uid, display)
+        return try {
+            val resp = api.getFriends()
+            resp.friends.map { f ->
+                val display = f.display_name ?: f.email
+                com.example.drawmaster.domain.model.Friend(f.friend_uid, display)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FriendRepo", "getFriends failed", e)
+            emptyList()
         }
     }
 }
