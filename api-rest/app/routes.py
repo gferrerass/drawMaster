@@ -80,6 +80,21 @@ def send_friend_request():
     if from_uid == to_uid:
         return jsonify({'error': 'cannot friend yourself'}), 400
 
+    # check if they are already friends (either direction)
+    from_profile = UserProfile.query.filter_by(uid=from_uid).first()
+    to_profile = UserProfile.query.filter_by(uid=to_uid).first()
+    already_friends = False
+    if from_profile:
+        existing = Friend.query.filter_by(user_id=from_profile.id, friend_uid=to_uid).first()
+        if existing:
+            already_friends = True
+    if not already_friends and to_profile:
+        existing_rev = Friend.query.filter_by(user_id=to_profile.id, friend_uid=from_uid).first()
+        if existing_rev:
+            already_friends = True
+    if already_friends:
+        return jsonify({'error': 'already friends'}), 400
+
     # check existing pending or accepted
     # check existing pending or accepted in same direction
     existing = FriendRequest.query.filter_by(from_uid=from_uid, to_uid=to_uid).first()
@@ -164,10 +179,10 @@ def reject_friend_request():
     if fr.status != 'pending':
         return jsonify({'error': 'request already responded'}), 400
 
-    fr.status = 'rejected'
-    fr.responded_at = datetime.utcnow()
+    # delete the friend request so the sender may send again later
+    db.session.delete(fr)
     db.session.commit()
-    return jsonify({'status': 'rejected', 'id': fr.id})
+    return jsonify({'status': 'deleted', 'id': req_id})
 
 
 @bp.route('/friends', methods=['GET'])
