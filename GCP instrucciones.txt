@@ -29,16 +29,11 @@ Comprobar con curl https://drawmaster-api-366945740310.europe-west8.run.app/heal
 JOB_NAME="drawmaster-migrate-$(date +%s)"
 
 Migrar:
-# Elimina un job
-gcloud run jobs delete nombre-del-job --region=europe-west8 --quiet
 
-# Crear y ejecutar job de migración
-JOB="drawmaster-migrate-$(date +%s)"
-gcloud run jobs create "$JOB" \
-  --image=europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo/drawmaster-api:v2 \
-  --region=europe-west8 \
-  --set-cloudsql-instances=drawmaster-481318:europe-west8:drawmaster-db \
-  --set-env-vars=GCS_BUCKET="drawmasters-avatars",DATABASE_URL="$DB_URL",SECRET_KEY="0123456789" \
-  --command=flask --args="db","upgrade"
+Actualizar job de migración para nueva versión: cambiar v3 por la nueva versión
+gcloud run jobs update drawmaster-migrate-v10 `
+  --image=europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo/drawmaster-api:v3 `
+  --region=europe-west8
 
-gcloud run jobs execute "$JOB" --region=europe-west8
+gcloud run jobs execute drawmaster-migrate-v10 --region=europe-west8
+
