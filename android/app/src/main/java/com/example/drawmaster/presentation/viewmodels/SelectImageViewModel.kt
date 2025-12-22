@@ -36,7 +36,8 @@ class SelectImageViewModel(
             R.drawable.paris,
             R.drawable.boat,
             R.drawable.farm,
-            R.drawable.beach
+            R.drawable.beach,
+            R.drawable.square
         ).distinct()
 
         if (sampleImageResources.isEmpty()) return null
