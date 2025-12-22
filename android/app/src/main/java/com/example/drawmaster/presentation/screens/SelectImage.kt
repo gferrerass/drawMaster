@@ -30,6 +30,7 @@ import com.example.drawmaster.presentation.viewmodels.SelectImageViewModelFactor
 @Composable
 fun SelectImageScreen(
     navController: NavHostController,
+    gameId: String? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -43,7 +44,7 @@ fun SelectImageScreen(
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { success ->
-            val route = viewModel.getConfirmNavigationRoute(success)
+            val route = viewModel.getConfirmNavigationRoute(success, gameId)
             if (route != null) {
                 navController.navigate(route)
             }
@@ -54,7 +55,7 @@ fun SelectImageScreen(
     ) { uri ->
         if (uri != null) {
             val encodedUri = Uri.encode(uri.toString())
-            navController.navigate("confirm_image/$encodedUri")
+            if (gameId != null) navController.navigate("confirm_image/$encodedUri/$gameId") else navController.navigate("confirm_image/$encodedUri")
         }
     }
 
@@ -121,7 +122,7 @@ fun SelectImageScreen(
                         description = "A random picture",
                         image = painterResource(id = R.drawable.gallery),
                         onClick = {
-                            val route = viewModel.generateSampleImageNavigationRoute()
+                            val route = viewModel.generateSampleImageNavigationRoute(gameId)
                             if (route != null) {
                                 navController.navigate(route)
                             }

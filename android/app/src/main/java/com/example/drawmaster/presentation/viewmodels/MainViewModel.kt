@@ -21,6 +21,6 @@ class MainViewModel : ViewModel() {
     }
 
     fun onMultiplayerClicked(navController: NavHostController) {
-        // navController.navigate("select_friend")
+        navController.navigate("select_friend")
     }
 }

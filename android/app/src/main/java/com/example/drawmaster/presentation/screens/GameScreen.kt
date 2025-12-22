@@ -42,6 +42,7 @@ import com.example.drawmaster.presentation.components.returnDrawing
 fun GameScreen(
     navController: NavHostController,
     imageUriString: String?,
+    gameId: String? = null,
     modifier: Modifier = Modifier
 ) {
     val viewModel: GameViewModel = viewModel()
@@ -60,7 +61,7 @@ fun GameScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.startGame()
+        viewModel.startGame(gameId = gameId)
     }
 
     // Activating/Deactivating shakeDetector when the screen is displayed/hidden
@@ -110,11 +111,44 @@ fun GameScreen(
                     // Ensuring that canvas dimensions are available before generating the bitmap
                     if (canvasWidth > 0 && canvasHeight > 0) {
                         val drawingFileURI = returnDrawing(context, strokes, canvasWidth, canvasHeight)
-                        if (drawingFileURI != null && imageUriString != null) {
-                            viewModel.navigatetoGameOverScreen(navController, drawingFileURI, imageUriString)
-                        }
+                            if (drawingFileURI != null && imageUriString != null) {
+                                if (gameId == null) {
+                                    viewModel.navigatetoGameOverScreen(navController, drawingFileURI, imageUriString!!)
+                                } else {
+                                    // multiplayer: submit drawing and wait for opponent/results
+                                    viewModel.submitMultiplayerDrawing(drawingFileURI, imageUriString!!)
+                                }
+                            }
                     }
                 }
+                    is GameScreenState.WaitingForResults -> {
+                        // show waiting UI while other player submits or timer expires
+                        Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator()
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("Waiting for opponent to finish...")
+                            }
+                        }
+                        // if results are available, navigate
+                        val results = viewModel.results.collectAsState().value
+                        if (results != null) {
+                            // Extract drawing URIs and navigate to game over screen using current user's drawing and opponent's drawing
+                            val scores = (results["scores"] as? Map<*, *>) ?: emptyMap<Any, Any>()
+                            val drawingUris = (results["drawingUris"] as? Map<*, *>) ?: emptyMap<Any, Any>()
+                            val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                            // extract both UIDs and both drawing URIs (may be null for timeout)
+                            val uids = drawingUris.keys.mapNotNull { it as? String }
+                            val opponentUid = uids.firstOrNull { it != myUid }
+                            val myDrawing = drawingUris[myUid] as? String
+                            val oppDrawing = if (opponentUid != null) drawingUris[opponentUid] as? String else null
+                            // navigate to game over screen once results exist; pass myDrawing if available, otherwise pass opponent/original as fallback
+                            // build primary and secondary URIs for GameOver: primary = myDrawing or opponent drawing or imageUriString
+                            val primary = myDrawing ?: oppDrawing ?: imageUriString ?: ""
+                            val secondary = oppDrawing ?: myDrawing ?: imageUriString ?: ""
+                            viewModel.navigatetoGameOverScreen(navController, primary, secondary)
+                        }
+                    }
                 is GameScreenState.Error -> {
                     Box(
                         modifier = Modifier

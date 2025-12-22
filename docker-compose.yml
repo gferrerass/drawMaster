@@ -25,6 +25,8 @@ services:
       FLASK_ENV: development
       # point to mounted service account inside the container
       FIREBASE_CREDENTIALS: /secrets/firebase.json
+      # Realtime DB host used to deploy rules from container on startup
+      FIREBASE_DB_HOST: draw-master-d1ba0-default-rtdb.europe-west1.firebasedatabase.app
     depends_on:
       - db
     ports:

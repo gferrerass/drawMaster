@@ -29,8 +29,16 @@ class SelectImageViewModel(
             null
         }
     }
+    fun getConfirmNavigationRoute(success: Boolean, gameId: String? = null): String? {
+        return if (success && _tempImageUri.value != null) {
+            val encodedUri = Uri.encode(_tempImageUri.value.toString())
+            if (gameId != null) "confirm_image/$encodedUri/$gameId" else "confirm_image/$encodedUri"
+        } else {
+            null
+        }
+    }
 
-    fun generateSampleImageNavigationRoute(): String? {
+    fun generateSampleImageNavigationRoute(gameId: String? = null): String? {
         val sampleImageResources = listOf(
             R.drawable.mountains,
             R.drawable.paris,
@@ -46,7 +54,7 @@ class SelectImageViewModel(
         val uri = resourceUriString.toUri()
         val encodedUri = Uri.encode(uri.toString())
 
-        return "confirm_image/$encodedUri"
+        return if (gameId != null) "confirm_image/$encodedUri/$gameId" else "confirm_image/$encodedUri"
     }
 }
 

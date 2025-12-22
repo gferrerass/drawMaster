@@ -2,6 +2,8 @@ package com.example.drawmaster.presentation.screens
 
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -19,8 +21,15 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.drawmaster.presentation.viewmodels.MainViewModel
 import com.example.drawmaster.presentation.viewmodels.AuthViewModel
+import com.example.drawmaster.presentation.viewmodels.InviteViewModel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AccountCircle
@@ -33,7 +42,31 @@ fun MainScreen(
 ) {
     val viewModel: MainViewModel = viewModel()
     val authViewModel: AuthViewModel = viewModel()
+    val inviteVm: InviteViewModel = viewModel()
     val currentUser by authViewModel.currentUser.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(currentUser?.uid) {
+        val user = FirebaseAuth.getInstance().currentUser
+        user?.getIdToken(true)
+            ?.addOnSuccessListener { result ->
+                val idToken = result.token
+                Log.i("TOKEN", idToken ?: "null")
+                // Uncomment to copy token to clipboard for quick testing
+                // val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                // val clip = ClipData.newPlainText("idToken", idToken)
+                // clipboard.setPrimaryClip(clip)
+                // Toast.makeText(context, "ID token copiado", Toast.LENGTH_SHORT).show()
+            }
+            ?.addOnFailureListener { e ->
+                Log.e("TOKEN", "Error obteniendo idToken", e)
+            }
+        if (currentUser?.uid != null) {
+            inviteVm.startListeningForInvites()
+        }
+    }
+
+    
     
     Scaffold(
         modifier = modifier,
@@ -55,6 +88,13 @@ fun MainScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.White.copy(alpha = 0.8f)
                             )
+                        // Debug: show current UID under the welcome text to help multi-emulator testing
+                        val uidText = currentUser?.uid ?: "not signed"
+                        Text(
+                            text = "UID: $uidText",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
                         }
                     }
                 },
@@ -128,6 +168,34 @@ fun MainScreen(
             }
         }
     )
+
+    // show incoming invite dialog
+    val incoming by inviteVm.incoming.collectAsState()
+    incoming?.let { inv ->
+        AlertDialog(
+            onDismissRequest = { /* keep until user acts */ },
+            title = { Text(text = "Game Invite") },
+            text = { Text(text = "${inv.fromName} te ha invitado a jugar.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    // capture invite gameId as fallback in case backend response omits it
+                    val fallbackGameId = inv.gameId.takeIf { it.isNotBlank() }
+                    inviteVm.acceptCurrentInvite { ok, gameId ->
+                        val gid = gameId ?: fallbackGameId
+                        if (ok && !gid.isNullOrBlank()) {
+                            navController.navigate("multiplayer_waiting/$gid")
+                        } else {
+                            // fallback: show a toast or log to help debugging
+                            android.util.Log.w("MainScreen", "accepted invite but no gameId returned or found")
+                        }
+                    }
+                }) { Text("Accept") }
+            },
+            dismissButton = {
+                TextButton(onClick = { inviteVm.rejectCurrentInvite() }) { Text("Reject") }
+            }
+        )
+    }
 }
 
 @Preview(showBackground = true)

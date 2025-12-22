@@ -16,6 +16,7 @@ val localProps = Properties().apply {
 fun prop(name: String, default: String): String = localProps.getProperty(name, default)
 
 val apiBaseUrl = prop("api_base_url", "http://10.0.2.2:5000/")
+val firebaseDbUrl = prop("firebase_database_url", "")
 
 android {
     namespace = "com.example.drawmaster"
@@ -44,6 +45,7 @@ android {
         debug {
             // Base URL overridable via local.properties api_base_url
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+            buildConfigField("String", "FIREBASE_DB_URL", "\"$firebaseDbUrl\"")
         }
     }
 
@@ -51,6 +53,9 @@ android {
     buildTypes.all {
         if (!buildConfigFields.containsKey("API_BASE_URL")) {
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        }
+        if (!buildConfigFields.containsKey("FIREBASE_DB_URL")) {
+            buildConfigField("String", "FIREBASE_DB_URL", "\"$firebaseDbUrl\"")
         }
     }
     compileOptions {
@@ -92,6 +97,8 @@ dependencies {
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
     implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-database-ktx:20.2.0")
+    implementation("com.google.firebase:firebase-messaging:23.2.0")
     // Location and Maps
     implementation("com.google.android.gms:play-services-location:21.0.1")
     implementation("org.osmdroid:osmdroid-android:6.1.13")

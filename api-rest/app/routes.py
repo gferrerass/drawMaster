@@ -4,6 +4,7 @@ from flask import Blueprint, current_app, request, jsonify, g
 from . import db
 from .models import UserProfile, Friend, GameRecord
 from .auth import requires_auth, init_firebase, firebase_auth
+from firebase_admin import db as firebase_db
 from .models import FriendRequest
 from datetime import datetime
 
@@ -247,3 +248,145 @@ def list_sent_friend_requests():
             pass
         out.append({'id': r.id, 'to_uid': r.to_uid, 'to_email': email, 'display_name': p.display_name if p else None, 'created_at': r.created_at.isoformat() if r.created_at else None})
     return jsonify({'requests': out})
+
+
+# Multiplayer: accept invite (called by the recipient)
+@bp.route('/multiplayer/invite/accept', methods=['POST'])
+@requires_auth
+def accept_invite():
+    data = request.json or {}
+    invite_id = data.get('invite_id') or data.get('id')
+    if not invite_id:
+        return jsonify({'error': 'invite_id required'}), 400
+    to_uid = g.user.get('uid')
+
+    # initialize firebase admin (with RTDB)
+    init_firebase()
+
+    used_game_id = None
+    try:
+        ref = firebase_db.reference(f"invites/{to_uid}/{invite_id}")
+        invite = ref.get()
+    except Exception as e:
+        return jsonify({'error': 'failed to read invite', 'details': str(e)}), 500
+
+    if not invite:
+        return jsonify({'error': 'invite not found'}), 404
+
+    from_uid = invite.get('fromUid') or invite.get('fromUid')
+    # create a game entry in RTDB so both players can observe it
+    try:
+        games_ref = firebase_db.reference('games')
+        # if the invite already referenced a gameId (created by the inviter), reuse it
+        existing_game_id = invite.get('gameId')
+        if existing_game_id:
+            game_ref = games_ref.child(existing_game_id)
+            # update existing game node with playerB and preserve other fields
+            game_updates = {
+                'playerB': to_uid,
+                'status': 'waiting_for_image_selection',
+                'updatedAt': datetime.utcnow().isoformat()
+            }
+            game_ref.update(game_updates)
+            used_game_id = existing_game_id
+        else:
+            new_game_ref = games_ref.push()
+            game_data = {
+                'playerA': from_uid,
+                'playerB': to_uid,
+                'status': 'waiting_for_image_selection',
+                'createdAt': datetime.utcnow().isoformat()
+            }
+            new_game_ref.set(game_data)
+            used_game_id = new_game_ref.key
+
+        # update invite with accepted status and ensure gameId is set
+        ref.update({'status': 'accepted', 'gameId': used_game_id, 'respondedAt': datetime.utcnow().isoformat()})
+    except Exception as e:
+        return jsonify({'error': 'failed to create game or update invite', 'details': str(e)}), 500
+
+    # return the game id that was used/created
+    return jsonify({'status': 'accepted', 'gameId': used_game_id})
+
+
+# Multiplayer: reject invite
+@bp.route('/multiplayer/invite/reject', methods=['POST'])
+@requires_auth
+def reject_invite():
+    data = request.json or {}
+    invite_id = data.get('invite_id') or data.get('id')
+    if not invite_id:
+        return jsonify({'error': 'invite_id required'}), 400
+    to_uid = g.user.get('uid')
+
+    init_firebase()
+    try:
+        ref = firebase_db.reference(f"invites/{to_uid}/{invite_id}")
+        invite = ref.get()
+    except Exception as e:
+        return jsonify({'error': 'failed to read invite', 'details': str(e)}), 500
+
+    if not invite:
+        return jsonify({'error': 'invite not found'}), 404
+
+    try:
+        # mark as rejected so the sender can see the reply, then optionally remove
+        ref.update({'status': 'rejected', 'respondedAt': datetime.utcnow().isoformat()})
+    except Exception as e:
+        return jsonify({'error': 'failed to update invite', 'details': str(e)}), 500
+
+    return jsonify({'status': 'rejected', 'id': invite_id})
+
+
+# Multiplayer: submit drawing for a game (called by either participant)
+@bp.route('/multiplayer/game/<game_id>/submit', methods=['POST'])
+@requires_auth
+def submit_game_drawing(game_id):
+    data = request.json or {}
+    drawing_uri = data.get('drawingUri')
+    original_uri = data.get('originalUri')
+    timed_out = data.get('timedOut', False)
+
+    uid = g.user.get('uid')
+    if not uid:
+        return jsonify({'error': 'not authenticated'}), 403
+
+    init_firebase()
+    try:
+        submissions_ref = firebase_db.reference(f'games/{game_id}/submissions')
+        # write this player's submission
+        payload = {
+            'drawingUri': drawing_uri,
+            'originalUri': original_uri,
+            'submittedAt': datetime.utcnow().isoformat(),
+            'timedOut': bool(timed_out)
+        }
+        submissions_ref.child(uid).set(payload)
+    except Exception as e:
+        return jsonify({'error': 'failed to write submission', 'details': str(e)}), 500
+
+    # after writing, check if there are two submissions and compute results if so
+    try:
+        submissions = submissions_ref.get() or {}
+        if isinstance(submissions, dict) and len(submissions.keys()) >= 2:
+            # compute placeholder scores (both 0 for now)
+            uids = list(submissions.keys())
+            uidA, uidB = uids[0], uids[1]
+            scoreA, scoreB = 0, 0
+            drawingA = submissions.get(uidA, {}).get('drawingUri') if isinstance(submissions.get(uidA), dict) else None
+            drawingB = submissions.get(uidB, {}).get('drawingUri') if isinstance(submissions.get(uidB), dict) else None
+            results = {
+                'scores': {uidA: scoreA, uidB: scoreB},
+                'drawingUris': {uidA: drawingA, uidB: drawingB},
+                'winner': None
+            }
+            # write results and set game state
+            firebase_db.reference(f'games/{game_id}/results').set(results)
+            firebase_db.reference(f'games/{game_id}/state').set('results')
+            return jsonify({'status': 'submitted', 'results': results}), 200
+    except Exception as e:
+        # non-fatal: submission succeeded but result computation failed
+        current_app.logger.exception('failed computing results')
+        return jsonify({'status': 'submitted', 'warning': 'result computation failed', 'details': str(e)}), 200
+
+    return jsonify({'status': 'submitted'})

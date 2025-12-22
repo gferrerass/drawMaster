@@ -1,4 +1,5 @@
 import os
+import json
 from functools import wraps
 from flask import request, jsonify, g
 from firebase_admin import auth as firebase_auth, credentials, initialize_app
@@ -17,7 +18,29 @@ def init_firebase():
             cred = credentials.Certificate(sa_path)
         else:
             cred = credentials.ApplicationDefault()
-        firebase_app = initialize_app(cred)
+
+        # Prefer explicit DB URL from config if provided (handles regional DBs)
+        db_url = getattr(Config, 'FIREBASE_DB_URL', None)
+        if db_url:
+            firebase_app = initialize_app(cred, {'databaseURL': db_url})
+        else:
+            # Try to derive Realtime Database URL from service account project_id
+            # (fallback; may be incorrect for regional RTDB instances)
+            if sa_path and os.path.exists(sa_path):
+                try:
+                    with open(sa_path, 'r', encoding='utf-8') as f:
+                        sa_json = json.load(f)
+                    project_id = sa_json.get('project_id')
+                except Exception:
+                    project_id = None
+            else:
+                project_id = None
+
+            if project_id:
+                database_url = f'https://{project_id}.firebaseio.com'
+                firebase_app = initialize_app(cred, {'databaseURL': database_url})
+            else:
+                firebase_app = initialize_app(cred)
     except Exception as e:
         print(f"Error initializing Firebase auth: {e}")
 
