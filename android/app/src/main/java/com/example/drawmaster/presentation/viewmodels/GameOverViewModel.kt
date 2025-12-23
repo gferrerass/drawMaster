@@ -13,8 +13,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.tensorflow.lite.DataType
@@ -24,22 +22,21 @@ import org.tensorflow.lite.support.common.ops.NormalizeOp
 import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 class GameOverViewModel : ViewModel() {
     private val _score = MutableStateFlow(0)
-    val score: StateFlow<Int> = _score.asStateFlow()
 
-    private val _isCalculating = MutableStateFlow(false)
-    val isCalculating: StateFlow<Boolean> = _isCalculating.asStateFlow()
+
 
     fun calculateScore(context: Context, drawingString: String?, originalString: String?) {
         if (drawingString == null || originalString == null) {
-            Log.e("GameOverViewModel", "URIs nulas")
+            Log.e("GameOverViewModel", "URIs null")
             return
         }
 
         viewModelScope.launch(Dispatchers.Default) {
-            _isCalculating.value = true
             try {
                 Log.d("GameOverViewModel", "Starting score procesing...")
                 Log.d("GameOverViewModel", "Drawing URI: $drawingString")
@@ -75,16 +72,12 @@ class GameOverViewModel : ViewModel() {
                 
                 withContext(Dispatchers.Main) {
                     _score.value = calculatedScore
-                    _isCalculating.value = false
                     Log.d("GameOverViewModel", "Final score: ${_score.value}")
                 }
 
                 tflite.close()
             } catch (e: Exception) {
                 Log.e("GameOverViewModel", "Error processing images: ${e.message}", e)
-                withContext(Dispatchers.Main) {
-                    _isCalculating.value = false
-                }
             }
         }
     }
@@ -106,10 +99,10 @@ class GameOverViewModel : ViewModel() {
         var normB = 0.0
         for (i in vec1.indices) {
             dotProduct += (vec1[i] * vec2[i]).toDouble()
-            normA += Math.pow(vec1[i].toDouble(), 2.0)
-            normB += Math.pow(vec2[i].toDouble(), 2.0)
+            normA += vec1[i].toDouble().pow(2.0)
+            normB += vec2[i].toDouble().pow(2.0)
         }
-        return (dotProduct / (Math.sqrt(normA) * Math.sqrt(normB))).toFloat()
+        return (dotProduct / (sqrt(normA) * sqrt(normB))).toFloat()
     }
 
     private fun uriToBitmap(context: Context, uri: Uri): Bitmap {

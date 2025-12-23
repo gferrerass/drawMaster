@@ -3,10 +3,13 @@ package com.example.drawmaster.presentation.viewmodels
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.drawmaster.R
 import com.example.drawmaster.domain.usecase.CreateTempImageUriUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import androidx.core.net.toUri
+import com.example.drawmaster.data.network.fetchUnsplashImageUrl
 
 class SelectImageViewModel(
     private val createTempImageUriUseCase: CreateTempImageUriUseCase,
@@ -30,7 +33,7 @@ class SelectImageViewModel(
         }
     }
 
-    fun generateSampleImageNavigationRoute(): String? {
+    suspend fun generateSampleImageNavigationRoute(): String? {
         val sampleImageResources = listOf(
             R.drawable.mountains,
             R.drawable.paris,
@@ -40,13 +43,29 @@ class SelectImageViewModel(
             R.drawable.square
         ).distinct()
 
-        if (sampleImageResources.isEmpty()) return null
-
+        // Defining a default local image URI
         val randomResourceId = sampleImageResources.random()
         val resourceUriString = "android.resource://" + applicationContext.packageName + "/" + randomResourceId
-        val uri = resourceUriString.toUri()
-        val encodedUri = Uri.encode(uri.toString())
+        var finalUriString = resourceUriString
 
+        // Attempting to get an image through API
+        val sampleImageNames = listOf(
+            "animal",
+           "landscape",
+            "food",
+            "hobby"
+        ).distinct()
+        val randomQuery = sampleImageNames.random()
+
+        try {
+            val localUri = fetchUnsplashImageUrl(applicationContext, randomQuery)
+            if (localUri != null) {
+                finalUriString = localUri
+            }
+        } catch (e: Exception) {
+            // If query fails, using local image
+        }
+        val encodedUri = Uri.encode(finalUriString)
         return "confirm_image/$encodedUri"
     }
 }

@@ -1,5 +1,6 @@
 package com.example.drawmaster.presentation.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,12 +34,10 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.drawmaster.R
 import com.example.drawmaster.presentation.components.TextButton
 import com.example.drawmaster.presentation.viewmodels.GameOverViewModel
-import com.example.drawmaster.presentation.viewmodels.GameViewModel
+
 import com.example.drawmaster.ui.theme.DrawMasterTheme
 import com.example.drawmaster.ui.theme.TealBlue
 
-
-// TODO: calcular puntuacion
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +50,9 @@ fun GameOverScreen(
     val viewModel: GameOverViewModel = viewModel()
     val context = LocalContext.current
     viewModel.calculateScore(context, drawingUriString, originalUriString)
+    // The user can't go back on this screen
+    BackHandler(enabled = true) {
+    }
     Scaffold(
         modifier = modifier,
         topBar = {

@@ -34,6 +34,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.drawmaster.R
 import com.example.drawmaster.ui.theme.DrawMasterTheme
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.platform.LocalContext
 import com.example.drawmaster.presentation.components.returnDrawing
 
@@ -57,6 +58,10 @@ fun GameScreen(
             viewModel.clearDrawing()
             Toast.makeText(context, "Shake detected! Erasing canvas", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    // The user can't go back on this screen
+    BackHandler(enabled = true) {
     }
 
     LaunchedEffect(Unit) {
