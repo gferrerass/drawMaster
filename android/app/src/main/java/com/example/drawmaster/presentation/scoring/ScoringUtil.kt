@@ -13,6 +13,8 @@ import org.tensorflow.lite.support.common.ops.NormalizeOp
 import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 object ScoringUtil {
     suspend fun computeScore(context: Context, drawingUriString: String?, originalUriString: String?): Int {
@@ -57,10 +59,10 @@ object ScoringUtil {
         var normB = 0.0
         for (i in vec1.indices) {
             dotProduct += (vec1[i] * vec2[i]).toDouble()
-            normA += Math.pow(vec1[i].toDouble(), 2.0)
-            normB += Math.pow(vec2[i].toDouble(), 2.0)
+            normA += vec1[i].toDouble().pow(2.0)
+            normB += vec2[i].toDouble().pow(2.0)
         }
-        return (dotProduct / (Math.sqrt(normA) * Math.sqrt(normB))).toFloat()
+        return (dotProduct / (sqrt(normA) * sqrt(normB))).toFloat()
     }
 
     private fun uriToBitmap(context: Context, uri: Uri): Bitmap {
