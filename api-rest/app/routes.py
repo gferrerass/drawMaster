@@ -346,6 +346,7 @@ def submit_game_drawing(game_id):
     drawing_uri = data.get('drawingUri')
     original_uri = data.get('originalUri')
     timed_out = data.get('timedOut', False)
+    provided_score = data.get('score')
 
     uid = g.user.get('uid')
     if not uid:
@@ -354,20 +355,13 @@ def submit_game_drawing(game_id):
     init_firebase()
     try:
         submissions_ref = firebase_db.reference(f'games/{game_id}/submissions')
-        # compute score for this submission WITHOUT saving the drawingUri
-        def compute_score(drawing_uri_val, original_uri_val, timed_out_flag):
-            # Placeholder scoring logic: real implementation should compare drawing to original
-            # Do NOT persist images here. Return integer score.
-            try:
-                if timed_out_flag:
-                    return 0
-                # If drawing_uri is present we could decode/process it here (off-line or via ML service)
-                # For now return placeholder 0
-                return 0
-            except Exception:
-                return 0
-
-        score = compute_score(drawing_uri, original_uri, bool(timed_out))
+        # Require client to provide a numeric 'score' (computed locally). Do not compute score server-side.
+        if provided_score is None:
+            return jsonify({'error': 'score is required; compute locally and include it in the payload'}), 400
+        try:
+            score = int(provided_score)
+        except Exception:
+            return jsonify({'error': 'score must be an integer'}), 400
 
         # write this player's submission as a score-only record
         payload = {

@@ -44,8 +44,6 @@ fun MultiplayerWaitingScreen(navController: NavHostController, gameId: String, m
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(modifier = Modifier.height(12.dp))
-        Text(text = "Waiting for opponent to accept...", style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(12.dp))
         if (error != null) Text(text = error!!, color = MaterialTheme.colorScheme.error)
 
         val myUid = FirebaseAuth.getInstance().currentUser?.uid
@@ -53,19 +51,23 @@ fun MultiplayerWaitingScreen(navController: NavHostController, gameId: String, m
         val playerB = gameData?.get("playerB") as? String
 
         if (playerB == null) {
-            // still waiting
+            // still waiting for recipient to accept
+            Text(text = "Waiting for opponent to accept...", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(12.dp))
             CircularProgressIndicator()
         } else {
             // opponent accepted
-            Text(text = "Opponent joined")
-            Spacer(modifier = Modifier.height(12.dp))
             if (myUid == playerA) {
                 // player A should pick image now
+                Text(text = "Opponent joined", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(12.dp))
                 Button(onClick = { navController.navigate("select_image/$gameId") }) {
                     Text("Select image and start")
                 }
             } else {
-                Text(text = "Waiting for player A to select image...")
+                // player B (recipient) is waiting for A to select
+                Text(text = "Waiting for player A to select image...", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(12.dp))
                 // if game state indicates start and image available, navigate to game screen
                 val state = gameData?.get("state") as? String
                 val imageUri = gameData?.get("imageUri") as? String

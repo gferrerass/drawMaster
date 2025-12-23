@@ -37,6 +37,7 @@ import com.example.drawmaster.ui.theme.DrawMasterTheme
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.example.drawmaster.presentation.components.returnDrawing
+import com.example.drawmaster.presentation.scoring.ScoringUtil
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +53,7 @@ fun GameScreen(
     val canvasWidth = viewModel.canvasWidth.collectAsState().value
     val canvasHeight = viewModel.canvasHeight.collectAsState().value
     val context = LocalContext.current
+    val submittedMultiplayer = remember { androidx.compose.runtime.mutableStateOf(false) }
 
     // Initialising ShakeDetector
     val shakeDetector = remember {
@@ -116,8 +118,14 @@ fun GameScreen(
                                 if (gameId == null) {
                                     viewModel.navigatetoGameOverScreen(navController, drawingFileURI, imageUriString!!)
                                 } else {
-                                    // multiplayer: submit drawing and wait for opponent/results
-                                    viewModel.submitMultiplayerDrawing(drawingFileURI, imageUriString!!)
+                                    // multiplayer: compute local score and submit with score
+                                    if (!submittedMultiplayer.value) {
+                                        LaunchedEffect(drawingFileURI) {
+                                            val sc = com.example.drawmaster.presentation.scoring.ScoringUtil.computeScore(context, drawingFileURI, imageUriString)
+                                            viewModel.submitMultiplayerDrawingForGame(gameId, drawingFileURI, imageUriString!!, sc)
+                                            submittedMultiplayer.value = true
+                                        }
+                                    }
                                 }
                             }
                     }

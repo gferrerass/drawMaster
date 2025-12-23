@@ -1,4 +1,4 @@
-package com.example.drawmaster.presentation.viewmodels
+package com.example.drawmaster.presentation.scoring
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -6,17 +6,6 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import android.util.Log
-import androidx.core.net.toUri
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import androidx.navigation.NavHostController
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.support.common.FileUtil
@@ -25,25 +14,31 @@ import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
 
-class GameOverViewModel : ViewModel() {
-    private val _score = MutableStateFlow(0)
-    val score: StateFlow<Int> = _score.asStateFlow()
+object ScoringUtil {
+    suspend fun computeScore(context: Context, drawingUriString: String?, originalUriString: String?): Int {
+        if (drawingUriString.isNullOrBlank() || originalUriString.isNullOrBlank()) return 0
+        return try {
+            val drawingBitmap = uriToBitmap(context, Uri.parse(drawingUriString))
+            val originalBitmap = uriToBitmap(context, Uri.parse(originalUriString))
 
-    private val _isCalculating = MutableStateFlow(false)
-    val isCalculating: StateFlow<Boolean> = _isCalculating.asStateFlow()
+            val tfliteOptions = Interpreter.Options()
+            val tflite = Interpreter(FileUtil.loadMappedFile(context, "mobilenet_v3_small.tflite"), tfliteOptions)
 
-    fun calculateScore(context: Context, drawingString: String?, originalString: String?) {
-        viewModelScope.launch {
-            _isCalculating.value = true
-            try {
-                val sc = com.example.drawmaster.presentation.scoring.ScoringUtil.computeScore(context, drawingString, originalString)
-                _score.value = sc
-            } catch (e: Exception) {
-                Log.e("GameOverViewModel", "Error computing score: ${e.message}", e)
-                _score.value = 0
-            } finally {
-                _isCalculating.value = false
-            }
+            val imageProcessor = ImageProcessor.Builder()
+                .add(ResizeOp(224, 224, ResizeOp.ResizeMethod.BILINEAR))
+                .add(NormalizeOp(127.5f, 127.5f))
+                .build()
+
+            val featDrawing = getEmbedding(tflite, drawingBitmap, imageProcessor)
+            val featOriginal = getEmbedding(tflite, originalBitmap, imageProcessor)
+
+            val similarity = cosineSimilarity(featDrawing, featOriginal)
+            var calculatedScore = (similarity.coerceIn(0f, 1f) * 100 * 2).toInt()
+            if (calculatedScore > 100) calculatedScore = 100
+            tflite.close()
+            calculatedScore
+        } catch (_: Exception) {
+            0
         }
     }
 
@@ -51,8 +46,6 @@ class GameOverViewModel : ViewModel() {
         val tensorImage = TensorImage(DataType.FLOAT32)
         tensorImage.load(bitmap)
         val processedImage = processor.process(tensorImage)
-
-        // MobileNetV3 Small output is 1024
         val output = Array(1) { FloatArray(1024) }
         tflite.run(processedImage.buffer, output)
         return output[0]
@@ -77,9 +70,5 @@ class GameOverViewModel : ViewModel() {
             MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
         }
         return bitmap.copy(Bitmap.Config.ARGB_8888, true)
-    }
-
-    fun navigatetoResults(navController: NavHostController) {
-        navController.navigate("results_screen/${_score.value}")
     }
 }
