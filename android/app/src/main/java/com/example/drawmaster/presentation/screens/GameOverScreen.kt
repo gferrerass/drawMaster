@@ -1,5 +1,6 @@
 package com.example.drawmaster.presentation.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,11 +50,10 @@ import com.example.drawmaster.R
 import com.example.drawmaster.presentation.components.TextButton
 import com.example.drawmaster.presentation.viewmodels.GameOverViewModel
 import com.example.drawmaster.presentation.viewmodels.GameViewModel
+
 import com.example.drawmaster.ui.theme.DrawMasterTheme
 import com.example.drawmaster.ui.theme.TealBlue
 
-
-// TODO: calcular puntuacion
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,7 +72,10 @@ fun GameOverScreen(
     // shared state for multiplayer results (populated when gameId is provided)
     var resultsMap by remember { mutableStateOf<Map<String, Any?>?>(null) }
     var playersOrder by remember { mutableStateOf<List<String>>(emptyList()) }
-
+    
+    BackHandler(enabled = true) {
+    } 
+     
     if (!gameId.isNullOrBlank()) {
         // listen for server-written results in RTDB for the given gameId
         val database = try {
@@ -128,7 +131,7 @@ fun GameOverScreen(
         // single-player: calculate score locally (or via the new endpoint inside the viewModel)
         val context = LocalContext.current
         DisposableEffect(drawingUriString, originalUriString) {
-            gameOverVm.calculateScore(context, drawingUriString, originalUriString)
+            gameOverVm.calculateScore(context, drawingUriString, originalUriString) 
             onDispose { }
         }
     }
@@ -149,8 +152,8 @@ fun GameOverScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(16.dp))
-            if (gameId.isNullOrBlank() || resultsMap == null) {
-                // fallback single-player view
+            if (gameId.isNullOrBlank()) {
+                // single-player view
                 Spacer(modifier = Modifier.height(50.dp))
                 Text(
                     text = "Your final drawing:",

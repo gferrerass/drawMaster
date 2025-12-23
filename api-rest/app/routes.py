@@ -7,6 +7,7 @@ from .auth import requires_auth, init_firebase, firebase_auth
 from firebase_admin import db as firebase_db
 from .models import FriendRequest
 from datetime import datetime
+from .config import Config
 
 bp = Blueprint('api', __name__)
 
@@ -413,3 +414,30 @@ def submit_game_drawing(game_id):
         return jsonify({'status': 'submitted', 'warning': 'result computation failed', 'details': str(e)}), 200
 
     return jsonify({'status': 'submitted'})
+
+
+
+
+@bp.route('/multiplayer/game/<game_id>/set_reference', methods=['POST'])
+@requires_auth
+def set_reference_image(game_id):
+    data = request.json or {}
+    image_url = data.get('imageUrl')
+    if not image_url:
+        return jsonify({'error': 'imageUrl is required'}), 400
+
+    # initialize firebase admin for RTDB access
+    init_firebase()
+    try:
+        games_ref = firebase_db.reference(f'games/{game_id}')
+        updates = {
+            'imageUri': image_url,
+            'state': 'started',
+            'startedAt': datetime.utcnow().isoformat(),
+            'updatedAt': datetime.utcnow().isoformat()
+        }
+        games_ref.update(updates)
+        return jsonify({'status': 'ok', 'imageUrl': image_url}), 200
+    except Exception as e:
+        current_app.logger.exception('failed updating RTDB with image url')
+        return jsonify({'error': 'failed updating game node', 'details': str(e)}), 500

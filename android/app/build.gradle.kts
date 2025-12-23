@@ -103,6 +103,10 @@ dependencies {
     // Location and Maps
     implementation("com.google.android.gms:play-services-location:21.0.1")
     implementation("org.osmdroid:osmdroid-android:6.1.13")
+    // MobileNet
     implementation("org.tensorflow:tensorflow-lite:2.14.0")
     implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
+    // Unsplash API
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.2")
 }

@@ -53,16 +53,29 @@ fun DrawMasterNavHost(
             val gameId = backStackEntry.arguments?.getString("gameId")
             SelectImageScreen(navController = navController, gameId = gameId)
         }
-        composable(route = "confirm_image/{imageUri}",
+        // confirm image with explicit remoteUrl (when selecting Unsplash remote image)
+        composable(route = "confirm_image/{imageUri}/{remoteUrl}",
             arguments = listOf(
-                navArgument("imageUri") {
-                    type = NavType.StringType
-                    nullable = true
-                }
+                navArgument("imageUri") { type = NavType.StringType; nullable = true },
+                navArgument("remoteUrl") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
             val imageUri = backStackEntry.arguments?.getString("imageUri")
-            ConfirmImageScreen(navController = navController, imageUriString = imageUri, gameId = null)
+            val remoteUrl = backStackEntry.arguments?.getString("remoteUrl")
+            ConfirmImageScreen(navController = navController, imageUriString = imageUri, remoteUrlString = remoteUrl, gameId = null)
+        }
+        // variant that accepts a gameId and remoteUrl when invoked from multiplayer flow
+        composable(route = "confirm_image/{imageUri}/{remoteUrl}/{gameId}",
+            arguments = listOf(
+                navArgument("imageUri") { type = NavType.StringType; nullable = true },
+                navArgument("remoteUrl") { type = NavType.StringType; nullable = true },
+                navArgument("gameId") { type = NavType.StringType; nullable = true }
+            )
+        ) { backStackEntry ->
+            val imageUri = backStackEntry.arguments?.getString("imageUri")
+            val remoteUrl = backStackEntry.arguments?.getString("remoteUrl")
+            val gameId = backStackEntry.arguments?.getString("gameId")
+            ConfirmImageScreen(navController = navController, imageUriString = imageUri, remoteUrlString = remoteUrl, gameId = gameId)
         }
         // confirm image when coming from multiplayer with gameId
         composable(route = "confirm_image/{imageUri}/{gameId}",

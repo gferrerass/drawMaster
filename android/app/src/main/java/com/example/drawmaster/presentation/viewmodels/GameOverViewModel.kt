@@ -6,16 +6,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class GameOverViewModel : ViewModel() {
     private val _score = MutableStateFlow(0)
-    val score: StateFlow<Int> = _score.asStateFlow()
-
     private val _isCalculating = MutableStateFlow(false)
-    val isCalculating: StateFlow<Boolean> = _isCalculating.asStateFlow()
+
 
     fun calculateScore(context: Context, drawingString: String?, originalString: String?) {
         viewModelScope.launch {

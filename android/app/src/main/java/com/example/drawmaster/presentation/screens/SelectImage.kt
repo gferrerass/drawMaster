@@ -3,7 +3,6 @@ package com.example.drawmaster.presentation.screens
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.*
@@ -25,6 +24,8 @@ import com.example.drawmaster.ui.theme.TealBlue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.drawmaster.presentation.viewmodels.SelectImageViewModel
 import com.example.drawmaster.presentation.viewmodels.SelectImageViewModelFactory
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +35,7 @@ fun SelectImageScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     val factory = remember {
         SelectImageViewModelFactory(context.applicationContext)
@@ -122,9 +124,11 @@ fun SelectImageScreen(
                         description = "A random picture",
                         image = painterResource(id = R.drawable.gallery),
                         onClick = {
-                            val route = viewModel.generateSampleImageNavigationRoute(gameId)
-                            if (route != null) {
-                                navController.navigate(route)
+                            coroutineScope.launch {
+                                val route = viewModel.generateSampleImageNavigationRoute(gameId)
+                                if (route != null) {
+                                    navController.navigate(route)
+                                }
                             }
                         }
                     )

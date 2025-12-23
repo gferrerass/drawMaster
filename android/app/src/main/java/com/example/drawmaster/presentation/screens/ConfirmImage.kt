@@ -32,11 +32,12 @@ import com.example.drawmaster.presentation.viewmodels.ConfirmImageViewModelFacto
 fun ConfirmImageScreen(
     navController: NavHostController,
     imageUriString: String?,
+    remoteUrlString: String? = null,
     gameId: String? = null,
     modifier: Modifier = Modifier
 ) {
     val factory = remember {
-        ConfirmImageViewModelFactory(imageUriString, gameId)
+        ConfirmImageViewModelFactory(imageUriString, remoteUrlString, gameId)
     }
     val viewModel: ConfirmImageViewModel = viewModel(factory = factory)
     val uiState = viewModel.uiState.collectAsState().value

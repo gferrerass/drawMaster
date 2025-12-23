@@ -28,8 +28,13 @@ fun MultiplayerWaitingScreen(navController: NavHostController, gameId: String, m
     DisposableEffect(gameId) {
         val listener = object : com.google.firebase.database.ValueEventListener {
             override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
-                val map = snapshot.value as? Map<String, Any>
-                gameData = map
+                try {
+                    val map = snapshot.value as? Map<String, Any>
+                    gameData = map
+                    android.util.Log.i("MultWait", "onDataChange gameId=$gameId snapshotExists=${snapshot.exists()} value=${snapshot.value}")
+                } catch (e: Exception) {
+                    android.util.Log.w("MultWait", "onDataChange parse error", e)
+                }
             }
 
             override fun onCancelled(errorDB: com.google.firebase.database.DatabaseError) {
@@ -72,11 +77,17 @@ fun MultiplayerWaitingScreen(navController: NavHostController, gameId: String, m
                 val state = gameData?.get("state") as? String
                 val imageUri = gameData?.get("imageUri") as? String
                 if (state == "started" && !imageUri.isNullOrBlank()) {
+                    android.util.Log.i("MultWait", "state=started imageUri present for gameId=$gameId imageUri=$imageUri")
                     val encodedUri = java.net.URLEncoder.encode(imageUri, "UTF-8")
                     LaunchedEffect(gameId) {
-                        // Pass gameId so the GameScreen knows this is a multiplayer match
-                        val encodedGameId = java.net.URLEncoder.encode(gameId, "UTF-8")
-                        navController.navigate("game_screen/$encodedUri/$encodedGameId")
+                        try {
+                            // Pass gameId so the GameScreen knows this is a multiplayer match
+                            val encodedGameId = java.net.URLEncoder.encode(gameId, "UTF-8")
+                            android.util.Log.i("MultWait", "navigating to game_screen with imageUri=$encodedUri gameId=$encodedGameId")
+                            navController.navigate("game_screen/$encodedUri/$encodedGameId")
+                        } catch (e: Exception) {
+                            android.util.Log.w("MultWait", "failed navigating to game_screen", e)
+                        }
                     }
                 }
             }
