@@ -132,7 +132,7 @@ fun GameScreen(
                         }
                         // if results are available, navigate
                         val results = viewModel.results.collectAsState().value
-                        if (results != null) {
+                            if (results != null) {
                             // Extract drawing URIs and navigate to game over screen using current user's drawing and opponent's drawing
                             val scores = (results["scores"] as? Map<*, *>) ?: emptyMap<Any, Any>()
                             val drawingUris = (results["drawingUris"] as? Map<*, *>) ?: emptyMap<Any, Any>()
@@ -146,7 +146,8 @@ fun GameScreen(
                             // build primary and secondary URIs for GameOver: primary = myDrawing or opponent drawing or imageUriString
                             val primary = myDrawing ?: oppDrawing ?: imageUriString ?: ""
                             val secondary = oppDrawing ?: myDrawing ?: imageUriString ?: ""
-                            viewModel.navigatetoGameOverScreen(navController, primary, secondary)
+                            // pass gameId so GameOverScreen can render both drawings & scores
+                            viewModel.navigatetoGameOverScreen(navController, primary, secondary, gameId)
                         }
                     }
                 is GameScreenState.Error -> {

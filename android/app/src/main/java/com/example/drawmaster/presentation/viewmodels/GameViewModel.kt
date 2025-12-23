@@ -155,10 +155,15 @@ class GameViewModel : ViewModel() {
         }
     }
 
-    fun navigatetoGameOverScreen(navController: NavHostController, drawingURI: String, originalURI: String) {
+    fun navigatetoGameOverScreen(navController: NavHostController, drawingURI: String, originalURI: String, gameId: String? = null) {
         val encodedUri = Uri.encode(drawingURI)
         val encodedOriginalUri = Uri.encode(originalURI)
-        navController.navigate("game_over_screen/$encodedUri/$encodedOriginalUri")
+        if (gameId.isNullOrBlank()) {
+            navController.navigate("game_over_screen/$encodedUri/$encodedOriginalUri")
+        } else {
+            val encodedGameId = Uri.encode(gameId)
+            navController.navigate("game_over_screen/$encodedUri/$encodedOriginalUri/$encodedGameId")
+        }
     }
 
     fun submitMultiplayerDrawing(drawingURI: String, originalURI: String) {

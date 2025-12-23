@@ -120,7 +120,20 @@ fun DrawMasterNavHost(
         ) { backStackEntry ->
             val drawingUri = backStackEntry.arguments?.getString("drawingUri")
             val originalUri = backStackEntry.arguments?.getString("originalUri")
-            GameOverScreen(navController = navController, drawingUriString = drawingUri, originalUriString = originalUri)
+            GameOverScreen(navController = navController, drawingUriString = drawingUri, originalUriString = originalUri, gameId = null)
+        }
+        // multiplayer variant: accept a gameId so the screen can show both players' drawings and scores
+        composable(route = "game_over_screen/{drawingUri}/{originalUri}/{gameId}",
+            arguments = listOf(
+                navArgument("drawingUri") { type = NavType.StringType; nullable = true },
+                navArgument("originalUri") { type = NavType.StringType; nullable = true },
+                navArgument("gameId") { type = NavType.StringType; nullable = true }
+            )
+        ) { backStackEntry ->
+            val drawingUri = backStackEntry.arguments?.getString("drawingUri")
+            val originalUri = backStackEntry.arguments?.getString("originalUri")
+            val gameId = backStackEntry.arguments?.getString("gameId")
+            GameOverScreen(navController = navController, drawingUriString = drawingUri, originalUriString = originalUri, gameId = gameId)
         }
         composable(route = "results_screen/{score}",
             arguments = listOf(

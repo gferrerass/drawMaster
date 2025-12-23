@@ -18,6 +18,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +30,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -45,9 +51,39 @@ fun GameOverScreen(
     navController: NavHostController,
     drawingUriString: String?,
     originalUriString: String?,
+    gameId: String? = null,
     modifier: Modifier = Modifier
 ) {
     val viewModel: GameOverViewModel = viewModel()
+    // If gameId is provided, load multiplayer results from RTDB
+    var resultsMap by remember { mutableStateOf<Map<String, Any?>?>(null) }
+    var playersOrder by remember { mutableStateOf<List<String>>(emptyList()) }
+    if (!gameId.isNullOrBlank()) {
+        val database = try {
+            val url = com.example.drawmaster.BuildConfig.FIREBASE_DB_URL
+            if (url.isNullOrBlank()) com.google.firebase.database.FirebaseDatabase.getInstance() else com.google.firebase.database.FirebaseDatabase.getInstance(url)
+        } catch (_: Exception) {
+            com.google.firebase.database.FirebaseDatabase.getInstance()
+        }
+        DisposableEffect(gameId) {
+            val ref = database.reference.child("games").child(gameId).child("results")
+            val listener = object : com.google.firebase.database.ValueEventListener {
+                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                    val map = snapshot.value as? Map<String, Any?>
+                    resultsMap = map
+                    // extract player order from scores map if possible
+                    val scores = map?.get("scores") as? Map<*, *>
+                    playersOrder = scores?.keys?.mapNotNull { it as? String } ?: emptyList()
+                }
+
+                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {}
+            }
+            ref.addValueEventListener(listener)
+            onDispose {
+                try { ref.removeEventListener(listener) } catch (_: Exception) {}
+            }
+        }
+    }
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -64,46 +100,111 @@ fun GameOverScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(150.dp))
-            Text(
-                text = "Your final drawing:",
-                color = Color.Gray,
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Card(
-                    shape = androidx.compose.ui.graphics.RectangleShape,
-                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
+            Spacer(modifier = Modifier.height(16.dp))
+            if (gameId.isNullOrBlank() || resultsMap == null) {
+                // fallback single-player view
+                Spacer(modifier = Modifier.height(50.dp))
+                Text(
+                    text = "Your final drawing:",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.6f),
+                    contentAlignment = Alignment.Center
                 ) {
-                    val painter = if (drawingUriString != null) {
-                        rememberAsyncImagePainter(model = drawingUriString)
-                    } else {
-                        painterResource(id = R.drawable.mountains)
+                    Card(
+                        shape = androidx.compose.ui.graphics.RectangleShape,
+                        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        val painter = if (drawingUriString != null) {
+                            rememberAsyncImagePainter(model = drawingUriString)
+                        } else {
+                            painterResource(id = R.drawable.mountains)
+                        }
+                        Image(
+                            painter = painter,
+                            contentDescription = "Drawn picture",
+                            modifier = Modifier.wrapContentSize(),
+                            contentScale = ContentScale.Fit,
+                        )
                     }
-                    Image(
-                        painter = painter,
-                        contentDescription = "Drawn picture",
-                        modifier = Modifier.wrapContentSize(),
-                        contentScale = ContentScale.Fit,
-                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(
+                    name = "See results",
+                    backgroundColor = TealBlue,
+                    borderColor = TealBlue,
+                    fontColor = Color.White,
+                    onClick = {
+                        viewModel.navigatetoResults(navController)
+                    }
+                )
+            } else {
+                // multiplayer final view: show both drawings and scores
+                val scores = resultsMap?.get("scores") as? Map<*, *> ?: emptyMap<Any, Any>()
+                val drawingUris = resultsMap?.get("drawingUris") as? Map<*, *> ?: emptyMap<Any, Any>()
+                val winnerUid = resultsMap?.get("winner") as? String
+                val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+
+                // determine players list
+                val playerUids: List<String> = if (playersOrder.isNotEmpty()) {
+                    playersOrder
+                } else {
+                    // fallback: union of keys from drawingUris and scores, ensure uniqueness
+                    val fallback = mutableListOf<String>()
+                    for (k in drawingUris.keys) {
+                        (k as? String)?.let { if (!fallback.contains(it)) fallback.add(it) }
+                    }
+                    for (k in scores.keys) {
+                        (k as? String)?.let { if (!fallback.contains(it)) fallback.add(it) }
+                    }
+                    fallback
+                }
+
+                Text(text = "Final Results", style = MaterialTheme.typography.headlineSmall)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // show two cards vertically (mobile) with image + score + result label
+                val anyDrawingAvailable = drawingUris.values.mapNotNull { it as? String }.any { it.isNotBlank() }
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    for (uid in playerUids) {
+                        val uri = drawingUris[uid] as? String
+                        val score = (scores[uid] as? Number)?.toInt() ?: 0
+                        val isMe = uid == myUid
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(text = if (isMe) "You" else "Opponent", style = MaterialTheme.typography.titleMedium)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                if (anyDrawingAvailable && !uri.isNullOrBlank()) {
+                                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                        val painter = rememberAsyncImagePainter(model = uri)
+                                        Image(painter = painter, contentDescription = "final drawing", modifier = Modifier.height(200.dp).fillMaxWidth(), contentScale = ContentScale.Fit)
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                                Text(text = "Score: $score", style = MaterialTheme.typography.bodyLarge)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                if (winnerUid != null) {
+                                    if (winnerUid == uid) {
+                                        Text(text = if (isMe) "You won! 🎉" else "Opponent won", color = Color(0xFF2E7D32), style = MaterialTheme.typography.bodyLarge)
+                                    } else {
+                                        Text(text = if (isMe) "You lost" else "Opponent lost", color = Color(0xFFC62828), style = MaterialTheme.typography.bodyLarge)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            TextButton(
-                name = "See results",
-                backgroundColor = TealBlue,
-                borderColor = TealBlue,
-                fontColor = Color.White,
-                onClick = {
-                    viewModel.navigatetoResults(navController)
-                    }
-            )
         }
     }
 }

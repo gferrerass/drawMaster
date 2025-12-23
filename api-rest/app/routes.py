@@ -354,10 +354,24 @@ def submit_game_drawing(game_id):
     init_firebase()
     try:
         submissions_ref = firebase_db.reference(f'games/{game_id}/submissions')
-        # write this player's submission
+        # compute score for this submission WITHOUT saving the drawingUri
+        def compute_score(drawing_uri_val, original_uri_val, timed_out_flag):
+            # Placeholder scoring logic: real implementation should compare drawing to original
+            # Do NOT persist images here. Return integer score.
+            try:
+                if timed_out_flag:
+                    return 0
+                # If drawing_uri is present we could decode/process it here (off-line or via ML service)
+                # For now return placeholder 0
+                return 0
+            except Exception:
+                return 0
+
+        score = compute_score(drawing_uri, original_uri, bool(timed_out))
+
+        # write this player's submission as a score-only record
         payload = {
-            'drawingUri': drawing_uri,
-            'originalUri': original_uri,
+            'score': score,
             'submittedAt': datetime.utcnow().isoformat(),
             'timedOut': bool(timed_out)
         }
@@ -368,17 +382,32 @@ def submit_game_drawing(game_id):
     # after writing, check if there are two submissions and compute results if so
     try:
         submissions = submissions_ref.get() or {}
+        # If there are at least two submissions, compute final results using stored scores only
         if isinstance(submissions, dict) and len(submissions.keys()) >= 2:
-            # compute placeholder scores (both 0 for now)
             uids = list(submissions.keys())
-            uidA, uidB = uids[0], uids[1]
-            scoreA, scoreB = 0, 0
-            drawingA = submissions.get(uidA, {}).get('drawingUri') if isinstance(submissions.get(uidA), dict) else None
-            drawingB = submissions.get(uidB, {}).get('drawingUri') if isinstance(submissions.get(uidB), dict) else None
+            # gather scores from submissions (they were saved as {'score': N, ...})
+            scores_map = {}
+            for k in uids:
+                entry = submissions.get(k) or {}
+                if isinstance(entry, dict):
+                    sc = entry.get('score')
+                    try:
+                        sc_int = int(sc) if sc is not None else 0
+                    except Exception:
+                        sc_int = 0
+                else:
+                    sc_int = 0
+                scores_map[k] = sc_int
+
+            # determine winner (or None on tie)
+            sorted_items = sorted(scores_map.items(), key=lambda kv: kv[1], reverse=True)
+            winner_uid = None
+            if len(sorted_items) >= 2 and sorted_items[0][1] != sorted_items[1][1]:
+                winner_uid = sorted_items[0][0]
+
             results = {
-                'scores': {uidA: scoreA, uidB: scoreB},
-                'drawingUris': {uidA: drawingA, uidB: drawingB},
-                'winner': None
+                'scores': scores_map,
+                'winner': winner_uid
             }
             # write results and set game state
             firebase_db.reference(f'games/{game_id}/results').set(results)
