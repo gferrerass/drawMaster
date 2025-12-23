@@ -85,7 +85,7 @@ class FriendRepositoryImpl(private val tokenProvider: TokenProvider) : FriendRep
             val resp = api.getFriends()
             resp.friends.map { f ->
                 val display = f.display_name ?: f.email
-                com.example.drawmaster.domain.model.Friend(f.friend_uid, display)
+                com.example.drawmaster.domain.model.Friend(f.friend_uid, display, f.email)
             }
         } catch (e: Exception) {
             android.util.Log.e("FriendRepo", "getFriends failed", e)

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.ui.graphics.Color
 import com.example.drawmaster.ui.theme.TealBlue
 import com.example.drawmaster.presentation.components.CustomButton
 import androidx.compose.ui.res.painterResource
@@ -49,7 +50,7 @@ fun SelectFriendScreen(navController: NavHostController, modifier: Modifier = Mo
                     items(friends) { f ->
                         CustomButton(
                             name = f.displayName ?: "Friend",
-                            description = "",
+                            description = f.email ?: "",
                             image = painterResource(id = R.drawable.profile),
                             onClick = {
                                 inviteVm.sendInvite(f.friendUid, f.displayName) { ok, gameId ->
@@ -79,6 +80,9 @@ fun FriendRow(friend: Friend, onInvite: (Friend) -> Unit) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                 Text(text = friend.displayName ?: "Friend")
+                friend.email?.let { em ->
+                    Text(text = em, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                }
             }
             Button(onClick = { onInvite(friend) }) {
                 Text("Invite")

@@ -9,6 +9,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -198,36 +203,51 @@ fun GameOverScreen(
                 // show two cards vertically (mobile) with image + score
                 val anyDrawingAvailable = drawingUris.values.mapNotNull { it as? String }.any { it.isNotBlank() }
                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    for (uid in playerUids) {
-                        val uri = drawingUris[uid] as? String
-                        val score = (scores[uid] as? Number)?.toInt() ?: 0
-                        val isMe = uid == myUid
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(text = if (isMe) "You" else "Opponent", style = MaterialTheme.typography.titleMedium)
-                                Spacer(modifier = Modifier.height(8.dp))
-                                if (anyDrawingAvailable && !uri.isNullOrBlank()) {
-                                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        for (uid in playerUids) {
+                            val uri = drawingUris[uid] as? String
+                            val score = (scores[uid] as? Number)?.toInt() ?: 0
+                            val isMe = uid == myUid
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.9f)
+                                    .padding(vertical = 8.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
+                                    // avatar / thumbnail
+                                    val avatarModifier = Modifier
+                                        .size(40.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                    if (anyDrawingAvailable && !uri.isNullOrBlank()) {
                                         val painter = rememberAsyncImagePainter(model = uri)
-                                        Image(painter = painter, contentDescription = "final drawing", modifier = Modifier.height(200.dp).fillMaxWidth(), contentScale = ContentScale.Fit)
+                                        Image(painter = painter, contentDescription = null, modifier = avatarModifier)
+                                    } else {
+                                        val placeholder = painterResource(id = com.example.drawmaster.R.drawable.profile)
+                                        Image(painter = placeholder, contentDescription = null, modifier = avatarModifier)
                                     }
-                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Column(modifier = Modifier.weight(1f), verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
+                                        Text(text = if (isMe) "You" else "Opponent", style = MaterialTheme.typography.titleMedium)
+                                    }
+
+                                    // score on the right, prominent
+                                    Text(
+                                        text = score.toString(),
+                                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.onBackground,
+                                        textAlign = TextAlign.End,
+                                        modifier = Modifier.padding(start = 12.dp)
+                                    )
                                 }
-                                // show prominent score
-                                Text(
-                                    text = "Score: $score",
-                                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
                             }
                         }
-                    }
                 }
             }
         }
