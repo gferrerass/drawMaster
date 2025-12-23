@@ -24,6 +24,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -32,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -61,11 +64,17 @@ fun GameOverScreen(
     gameId: String? = null,
     modifier: Modifier = Modifier
 ) {
-    val viewModel: GameOverViewModel = viewModel()
-    // If gameId is provided, load multiplayer results from RTDB
+    val gameOverVm: GameOverViewModel = viewModel()
+    val gameVm: GameViewModel = viewModel()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    // shared state for multiplayer results (populated when gameId is provided)
     var resultsMap by remember { mutableStateOf<Map<String, Any?>?>(null) }
     var playersOrder by remember { mutableStateOf<List<String>>(emptyList()) }
+
     if (!gameId.isNullOrBlank()) {
+        // listen for server-written results in RTDB for the given gameId
         val database = try {
             val url = com.example.drawmaster.BuildConfig.FIREBASE_DB_URL
             if (url.isNullOrBlank()) com.google.firebase.database.FirebaseDatabase.getInstance() else com.google.firebase.database.FirebaseDatabase.getInstance(url)
@@ -78,7 +87,6 @@ fun GameOverScreen(
                 override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
                     val map = snapshot.value as? Map<String, Any?>
                     resultsMap = map
-                    // extract player order from scores map if possible
                     val scores = map?.get("scores") as? Map<*, *>
                     playersOrder = scores?.keys?.mapNotNull { it as? String } ?: emptyList()
                 }
@@ -86,9 +94,42 @@ fun GameOverScreen(
                 override fun onCancelled(error: com.google.firebase.database.DatabaseError) {}
             }
             ref.addValueEventListener(listener)
+            // If user hasn't submitted yet, try to submit current drawing (so server can compute once both submitted).
+            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            if (uid != null) {
+                val subsRef = database.reference.child("games").child(gameId).child("submissions").child(uid)
+                // read once
+                subsRef.get().addOnSuccessListener { snap ->
+                    if (!snap.exists()) {
+                        // no submission for this user yet — if we have a drawingUri, send it to server
+                        if (!drawingUriString.isNullOrBlank()) {
+                            // compute score in background and submit with score (use runBlocking inside a thread)
+                            Thread {
+                                val sc = kotlinx.coroutines.runBlocking {
+                                    com.example.drawmaster.presentation.scoring.ScoringUtil.computeScore(context, drawingUriString, originalUriString)
+                                }
+                                gameVm.submitMultiplayerDrawingForGame(gameId, drawingUriString, originalUriString ?: "", sc)
+                            }.start()
+                        }
+                    } else {
+                        // already submitted; ensure we listen for results
+                        gameVm.listenForResults(gameId)
+                    }
+                }.addOnFailureListener {
+                    // ignore read failure — still listen for results
+                    gameVm.listenForResults(gameId)
+                }
+            }
             onDispose {
                 try { ref.removeEventListener(listener) } catch (_: Exception) {}
             }
+        }
+    } else {
+        // single-player: calculate score locally (or via the new endpoint inside the viewModel)
+        val context = LocalContext.current
+        DisposableEffect(drawingUriString, originalUriString) {
+            gameOverVm.calculateScore(context, drawingUriString, originalUriString)
+            onDispose { }
         }
     }
     Scaffold(
@@ -147,9 +188,10 @@ fun GameOverScreen(
                     borderColor = TealBlue,
                     fontColor = Color.White,
                     onClick = {
-                        viewModel.navigatetoResults(navController)
+                        gameOverVm.navigatetoResults(navController)
                     }
                 )
+                Spacer(modifier = Modifier.height(8.dp))
             } else {
                 // multiplayer final view: show both drawings and scores
                 val scores = resultsMap?.get("scores") as? Map<*, *> ?: emptyMap<Any, Any>()
@@ -246,8 +288,22 @@ fun GameOverScreen(
                                         modifier = Modifier.padding(start = 12.dp)
                                     )
                                 }
+                                Spacer(modifier = Modifier.height(12.dp))
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        TextButton(
+                            name = "Home",
+                            backgroundColor = Color.White,
+                            borderColor = TealBlue,
+                            fontColor = TealBlue,
+                            onClick = {
+                                navController.navigate("main_screen") {
+                                    popUpTo("main_screen") { inclusive = true }
+                                }
+                            }
+                        )
                 }
             }
         }
