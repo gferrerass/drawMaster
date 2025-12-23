@@ -30,6 +30,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -166,9 +168,34 @@ fun GameOverScreen(
                 }
 
                 Text(text = "Final Results", style = MaterialTheme.typography.headlineSmall)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // compute overall header (show once)
+                val winnerUidLocal = winnerUid
+                val resultHeader: String
+                val headerColor: Color
+                val myIsWinner = winnerUidLocal != null && winnerUidLocal == myUid
+                if (winnerUidLocal == null) {
+                    resultHeader = "It's a tie!"
+                    headerColor = Color(0xFF757575)
+                } else if (myIsWinner) {
+                    resultHeader = "You won!"
+                    headerColor = Color(0xFF2E7D32)
+                } else {
+                    resultHeader = "You lost — good luck next time"
+                    headerColor = Color(0xFFC62828)
+                }
+
+                Text(
+                    text = resultHeader,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = headerColor,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // show two cards vertically (mobile) with image + score + result label
+                // show two cards vertically (mobile) with image + score
                 val anyDrawingAvailable = drawingUris.values.mapNotNull { it as? String }.any { it.isNotBlank() }
                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     for (uid in playerUids) {
@@ -191,15 +218,13 @@ fun GameOverScreen(
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
                                 }
-                                Text(text = "Score: $score", style = MaterialTheme.typography.bodyLarge)
+                                // show prominent score
+                                Text(
+                                    text = "Score: $score",
+                                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
                                 Spacer(modifier = Modifier.height(6.dp))
-                                if (winnerUid != null) {
-                                    if (winnerUid == uid) {
-                                        Text(text = if (isMe) "You won! 🎉" else "Opponent won", color = Color(0xFF2E7D32), style = MaterialTheme.typography.bodyLarge)
-                                    } else {
-                                        Text(text = if (isMe) "You lost" else "Opponent lost", color = Color(0xFFC62828), style = MaterialTheme.typography.bodyLarge)
-                                    }
-                                }
                             }
                         }
                     }

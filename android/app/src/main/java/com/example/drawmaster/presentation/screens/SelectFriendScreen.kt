@@ -48,8 +48,8 @@ fun SelectFriendScreen(navController: NavHostController, modifier: Modifier = Mo
                 LazyColumn(modifier = Modifier.fillMaxSize().padding(8.dp)) {
                     items(friends) { f ->
                         CustomButton(
-                            name = f.displayName ?: f.friendUid,
-                            description = f.friendUid,
+                            name = f.displayName ?: "Friend",
+                            description = "",
                             image = painterResource(id = R.drawable.profile),
                             onClick = {
                                 inviteVm.sendInvite(f.friendUid, f.displayName) { ok, gameId ->
@@ -78,8 +78,7 @@ fun FriendRow(friend: Friend, onInvite: (Friend) -> Unit) {
         .padding(6.dp)) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                Text(text = friend.displayName ?: friend.friendUid)
-                Text(text = friend.friendUid, style = MaterialTheme.typography.bodySmall)
+                Text(text = friend.displayName ?: "Friend")
             }
             Button(onClick = { onInvite(friend) }) {
                 Text("Invite")

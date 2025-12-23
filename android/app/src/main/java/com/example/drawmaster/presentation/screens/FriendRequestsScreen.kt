@@ -101,7 +101,7 @@ private fun SearchTab(onSend: (String) -> Unit, sendError: String?, sendSuccess:
             Text("Pending requests you sent:", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
             LazyColumn(modifier = Modifier.padding(top = 8.dp)) {
                 items(outgoing) { req ->
-                    Text((req.displayName ?: req.toUid) + " (sent)", modifier = Modifier.padding(vertical = 6.dp))
+                    Text((req.displayName ?: "Pending") + " (sent)", modifier = Modifier.padding(vertical = 6.dp))
                 }
             }
         }
@@ -121,7 +121,7 @@ private fun FriendsTab(friends: List<com.example.drawmaster.domain.model.Friend>
         } else {
             LazyColumn(modifier = Modifier.padding(top = 8.dp)) {
                 items(friends) { f ->
-                    Text(f.displayName ?: f.friendUid, modifier = Modifier.padding(vertical = 6.dp))
+                    Text(f.displayName ?: "Friend", modifier = Modifier.padding(vertical = 6.dp))
                 }
             }
         }

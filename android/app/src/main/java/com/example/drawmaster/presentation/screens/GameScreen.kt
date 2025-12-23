@@ -13,6 +13,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -133,21 +134,8 @@ fun GameScreen(
                         // if results are available, navigate
                         val results = viewModel.results.collectAsState().value
                             if (results != null) {
-                            // Extract drawing URIs and navigate to game over screen using current user's drawing and opponent's drawing
-                            val scores = (results["scores"] as? Map<*, *>) ?: emptyMap<Any, Any>()
-                            val drawingUris = (results["drawingUris"] as? Map<*, *>) ?: emptyMap<Any, Any>()
-                            val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-                            // extract both UIDs and both drawing URIs (may be null for timeout)
-                            val uids = drawingUris.keys.mapNotNull { it as? String }
-                            val opponentUid = uids.firstOrNull { it != myUid }
-                            val myDrawing = drawingUris[myUid] as? String
-                            val oppDrawing = if (opponentUid != null) drawingUris[opponentUid] as? String else null
-                            // navigate to game over screen once results exist; pass myDrawing if available, otherwise pass opponent/original as fallback
-                            // build primary and secondary URIs for GameOver: primary = myDrawing or opponent drawing or imageUriString
-                            val primary = myDrawing ?: oppDrawing ?: imageUriString ?: ""
-                            val secondary = oppDrawing ?: myDrawing ?: imageUriString ?: ""
-                            // pass gameId so GameOverScreen can render both drawings & scores
-                            viewModel.navigatetoGameOverScreen(navController, primary, secondary, gameId)
+                            // results are available server-side (scores only). Navigate to GameOver and pass gameId.
+                            viewModel.navigatetoGameOverScreen(navController, "", "", gameId)
                         }
                     }
                 is GameScreenState.Error -> {
@@ -182,6 +170,11 @@ private fun GamePlayingContent(
     val strokeColor = viewModel.strokeColor.collectAsState().value
     val strokeWidth = viewModel.strokeWidth.collectAsState().value
 
+    val configuration = LocalConfiguration.current
+    val screenH = configuration.screenHeightDp
+    // consider small screens under 700dp height (tweakable)
+    val isSmallScreen = screenH < 700
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -190,12 +183,13 @@ private fun GamePlayingContent(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
 
-        TimerDisplay(timeRemaining)
-        ReferenceImageSection(imageUriString)
+        TimerDisplay(timeRemaining, isSmallScreen)
+        ReferenceImageSection(imageUriString, isSmallScreen)
         DrawingCanvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(320.dp),
+                // give the canvas more weight on small screens so controls remain visible
+                .weight(if (isSmallScreen) 1.4f else 1f),
             strokes = strokes,
             strokeColor = Color(strokeColor),
             strokeWidth = strokeWidth,
@@ -228,7 +222,9 @@ private fun GamePlayingContent(
 }
 
 @Composable
-private fun TimerDisplay(timeRemaining: Int) {
+private fun TimerDisplay(timeRemaining: Int, isSmall: Boolean = false) {
+    val padding = if (isSmall) 8.dp else 16.dp
+    val font = if (isSmall) 18.sp else 24.sp
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -236,12 +232,12 @@ private fun TimerDisplay(timeRemaining: Int) {
                 color = if (timeRemaining > 10) Color(0xFFE8F5E9) else Color(0xFFFFEBEE),
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
             )
-            .padding(16.dp),
+            .padding(padding),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = "⏱ $timeRemaining s",
-            fontSize = 24.sp,
+            fontSize = font,
             fontWeight = FontWeight.Bold,
             color = if (timeRemaining > 10) Color(0xFF2E7D32) else Color(0xFFC62828)
         )
@@ -249,20 +245,21 @@ private fun TimerDisplay(timeRemaining: Int) {
 }
 
 @Composable
-private fun ReferenceImageSection(imageUriString: String?) {
+private fun ReferenceImageSection(imageUriString: String?, isSmall: Boolean = false) {
+    val cardHeight = if (isSmall) 120.dp else 200.dp
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = "Reference Image",
-            fontSize = 12.sp,
+            fontSize = if (isSmall) 10.sp else 12.sp,
             color = Color.Gray
         )
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp),
+                .height(cardHeight),
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.dp, Color.LightGray),
             colors = CardDefaults.cardColors(

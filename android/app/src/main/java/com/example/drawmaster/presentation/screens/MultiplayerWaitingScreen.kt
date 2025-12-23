@@ -43,11 +43,6 @@ fun MultiplayerWaitingScreen(navController: NavHostController, gameId: String, m
     }
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        // Debug info: show current UID and DB URL to confirm separate devices
-        val debugUid = FirebaseAuth.getInstance().currentUser?.uid ?: "not signed"
-        val debugDbUrl = try { com.example.drawmaster.BuildConfig.FIREBASE_DB_URL ?: "default" } catch (_: Exception) { "default" }
-        Text(text = "Debug UID: $debugUid", style = MaterialTheme.typography.bodySmall)
-        Text(text = "DB: $debugDbUrl", style = MaterialTheme.typography.bodySmall)
         Spacer(modifier = Modifier.height(12.dp))
         Text(text = "Waiting for opponent to accept...", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(12.dp))
@@ -62,7 +57,7 @@ fun MultiplayerWaitingScreen(navController: NavHostController, gameId: String, m
             CircularProgressIndicator()
         } else {
             // opponent accepted
-            Text(text = "Opponent joined: ${if (myUid == playerA) "$playerB" else "$playerA"}")
+            Text(text = "Opponent joined")
             Spacer(modifier = Modifier.height(12.dp))
             if (myUid == playerA) {
                 // player A should pick image now

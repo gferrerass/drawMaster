@@ -88,13 +88,7 @@ fun MainScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.White.copy(alpha = 0.8f)
                             )
-                        // Debug: show current UID under the welcome text to help multi-emulator testing
-                        val uidText = currentUser?.uid ?: "not signed"
-                        Text(
-                            text = "UID: $uidText",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.6f)
-                        )
+                        // welcome text only (do not expose UIDs in UI)
                         }
                     }
                 },
@@ -175,7 +169,7 @@ fun MainScreen(
         AlertDialog(
             onDismissRequest = { /* keep until user acts */ },
             title = { Text(text = "Game Invite") },
-            text = { Text(text = "${inv.fromName} te ha invitado a jugar.") },
+            text = { Text(text = "${inv.fromName} has invited you to play.") },
             confirmButton = {
                 TextButton(onClick = {
                     // capture invite gameId as fallback in case backend response omits it
