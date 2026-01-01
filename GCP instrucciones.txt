@@ -28,11 +28,11 @@ $DB_URL = "mysql+pymysql://${USER}:${PASS}@localhost/${DB}?unix_socket=/cloudsql
 
 # 3. Empaquetar todas las variables en una sola cadena separada por comas
 # IMPORTANTE: Sin espacios después de las comas
-$ENV_VARS = "GCS_BUCKET=drawmasters-avatars,DATABASE_URL=$DB_URL,SECRET_KEY=0123456789,FLASK_APP=run.py,FIREBASE_CREDENTIALS=/app/draw-master-d1ba0-firebase-adminsdk-fbsvc-7aa7eac6f3.json"
+$ENV_VARS = "DATABASE_URL=$DB_URL,SECRET_KEY=0123456789,FLASK_APP=run.py,FIREBASE_CREDENTIALS=/app/draw-master-d1ba0-firebase-adminsdk-fbsvc-7aa7eac6f3.json,FIREBASE_DB_URL=https://draw-master-d1ba0-default-rtdb.europe-west1.firebasedatabase.app"
 
 # 4. Ejecutar el deploy usando la variable entre comillas
 gcloud run deploy drawmaster-api `
-  --image europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo/drawmaster-api:v3 `
+  --image europe-west8-docker.pkg.dev/drawmaster-481318/cloud-run-repo/drawmaster-api:v4 `
   --platform managed `
   --region europe-west8 `
   --port 5000 `

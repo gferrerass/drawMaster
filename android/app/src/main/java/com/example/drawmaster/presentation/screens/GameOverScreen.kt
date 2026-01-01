@@ -105,12 +105,18 @@ fun GameOverScreen(
                 subsRef.get().addOnSuccessListener { snap ->
                     if (!snap.exists()) {
                         // no submission for this user yet — if we have a drawingUri, send it to server
-                        if (!drawingUriString.isNullOrBlank()) {
+                                if (!drawingUriString.isNullOrBlank()) {
                             // compute score in background and submit with score (use runBlocking inside a thread)
                             Thread {
                                 val sc = kotlinx.coroutines.runBlocking {
-                                    com.example.drawmaster.presentation.scoring.ScoringUtil.computeScore(context, drawingUriString, originalUriString)
+                                    try {
+                                        com.example.drawmaster.presentation.scoring.ScoringUtil.computeScore(context, drawingUriString, originalUriString)
+                                    } catch (e: Exception) {
+                                        android.util.Log.w("GameOverScreen", "computeScore exception", e)
+                                        0
+                                    }
                                 }
+                                android.util.Log.i("GameOverScreen", "computed score=$sc for gameId=$gameId uid=${com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid}")
                                 gameVm.submitMultiplayerDrawingForGame(gameId, drawingUriString, originalUriString ?: "", sc)
                             }.start()
                         }

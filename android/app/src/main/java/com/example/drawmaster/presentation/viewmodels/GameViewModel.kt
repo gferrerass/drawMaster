@@ -138,30 +138,24 @@ class GameViewModel : ViewModel() {
             return
         }
 
-        // No drawing to submit: write a timeout placeholder with score 0 so opponent can finish
+        // No drawing to submit: call the server submit endpoint with score=0 so the server
+        // (with admin privileges) writes submissions and computes results reliably.
         val gameId = multiplayerGameId!!
         try {
-            val database = try {
-                val url = com.example.drawmaster.BuildConfig.FIREBASE_DB_URL
-                if (url.isNullOrBlank()) com.google.firebase.database.FirebaseDatabase.getInstance() else com.google.firebase.database.FirebaseDatabase.getInstance(url)
-            } catch (_: Exception) {
-                com.google.firebase.database.FirebaseDatabase.getInstance()
-            }
-            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: run {
+            val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            if (user == null) {
                 _gameState.value = GameScreenState.Error("not authenticated")
                 return
             }
-            val submissionsRef = database.reference.child("games").child(gameId).child("submissions")
-            // placeholder payload — no drawing present, timed out
-            val payload = mapOf(
-                "drawingUri" to null,
-                "originalUri" to _imageName.value,
-                "submittedAt" to System.currentTimeMillis(),
-                "timedOut" to true,
-                "score" to 0
-            )
-                submissionsRef.child(uid).setValue(payload)
-                _gameState.value = GameScreenState.WaitingForResults
+            // Use the existing helper to submit via backend; this handles token and result listening.
+            viewModelScope.launch {
+                try {
+                    submitMultiplayerDrawingForGame(gameId, "", _imageName.value ?: "", 0)
+                    // submitMultiplayerDrawingForGame will set WaitingForResults on success
+                } catch (e: Exception) {
+                    mainHandler.post { _gameState.value = GameScreenState.Error("failed submitting timeout: ${e.message}") }
+                }
+            }
         } catch (e: Exception) {
             _gameState.value = GameScreenState.Error("failed submitting timeout: ${e.message}")
         }
@@ -264,25 +258,64 @@ class GameViewModel : ViewModel() {
                     .header("Authorization", "Bearer $idToken")
                     .header("Accept", "application/json")
                     .build()
-                httpClient.newCall(req).enqueue(object : okhttp3.Callback {
-                    override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                        mainHandler.post { _gameState.value = GameScreenState.Error("submit failed: ${e.message}") }
-                    }
+                // helper to build request with token
+                fun buildRequest(token: String): Request {
+                    return Request.Builder()
+                        .url(apiUrl)
+                        .post(body)
+                        .header("Authorization", "Bearer $token")
+                        .header("Accept", "application/json")
+                        .build()
+                }
 
-                    override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                        response.use { r ->
-                            if (!r.isSuccessful) {
-                                mainHandler.post { _gameState.value = GameScreenState.Error("submit HTTP ${r.code}: ${r.message}") }
-                                return
-                            }
-                            mainHandler.post {
-                                _gameState.value = GameScreenState.WaitingForResults
-                                // ensure we listen for results for this game
-                                listenForResults(gameId)
+                android.util.Log.i("GameVM", "submitting multiplayer drawing to $apiUrl for game=$gameId uid=${user.uid} score=${score ?: "<null>"} drawingUri=$drawingURI")
+
+                // perform call with retry-on-token-early: retry once after refreshing token
+                fun doCall(request: Request, attemptedRefresh: Boolean = false) {
+                    httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+                        override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                            mainHandler.post { _gameState.value = GameScreenState.Error("submit failed: ${e.message}") }
+                        }
+
+                        override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                            response.use { r ->
+                                val code = r.code
+                                val bodyStr = try { r.body?.string() } catch (_: Exception) { null }
+                                android.util.Log.i("GameVM", "submit HTTP $code body=$bodyStr")
+                                if (code == 401 && !attemptedRefresh) {
+                                    // possible "Token used too early" - refresh token and retry once
+                                    android.util.Log.w("GameVM", "401 received; attempting token refresh and retry")
+                                    user.getIdToken(true).addOnCompleteListener { tokenTask ->
+                                        if (!tokenTask.isSuccessful) {
+                                            mainHandler.post { _gameState.value = GameScreenState.Error("token refresh failed: ${tokenTask.exception?.message}") }
+                                            return@addOnCompleteListener
+                                        }
+                                        val newToken = tokenTask.result?.token ?: ""
+                                        if (newToken.isBlank()) {
+                                            mainHandler.post { _gameState.value = GameScreenState.Error("token refresh returned empty token") }
+                                            return@addOnCompleteListener
+                                        }
+                                        doCall(buildRequest(newToken), attemptedRefresh = true)
+                                    }
+                                    return
+                                }
+
+                                if (!r.isSuccessful) {
+                                    mainHandler.post { _gameState.value = GameScreenState.Error("submit HTTP ${r.code}: ${r.message}") }
+                                    return
+                                }
+                                mainHandler.post {
+                                    _gameState.value = GameScreenState.WaitingForResults
+                                    listenForResults(gameId)
+                                }
                             }
                         }
-                    }
-                })
+                    })
+                }
+
+                // initial call with current token
+                val initialReq = buildRequest(idToken)
+                doCall(initialReq, attemptedRefresh = false)
             }
         } catch (e: Exception) {
             _gameState.value = GameScreenState.Error("failed submitting drawing: ${e.message}")
