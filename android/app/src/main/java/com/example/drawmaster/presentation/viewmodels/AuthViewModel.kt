@@ -26,7 +26,7 @@ class AuthViewModel : ViewModel() {
     }
 
     init {
-        // Observar cambios en el estado de autenticación
+        // Observing changes in authentication state
         auth.addAuthStateListener(authListener)
     }
     
@@ -35,9 +35,9 @@ class AuthViewModel : ViewModel() {
             try {
                 _authState.value = AuthState.Loading
                 auth.signInWithEmailAndPassword(email, password).await()
-                _authState.value = AuthState.Success("Login exitoso")
+                _authState.value = AuthState.Success("Successful Log in")
             } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.message ?: "Error al iniciar sesión")
+                _authState.value = AuthState.Error(e.message ?: "Log in error")
             }
         }
     }
@@ -47,7 +47,7 @@ class AuthViewModel : ViewModel() {
             try {
                 _authState.value = AuthState.Loading
                 auth.createUserWithEmailAndPassword(email, password).await()
-                // Si se proporcionó un nombre, actualizar el perfil del usuario
+                // If name was provided, update user's profile
                 val user = auth.currentUser
                 if (user != null && !displayName.isNullOrBlank()) {
                     val profileUpdates = UserProfileChangeRequest.Builder()
@@ -55,11 +55,11 @@ class AuthViewModel : ViewModel() {
                         .build()
                     user.updateProfile(profileUpdates).await()
                 }
-                // Actualizar currentUser y estado
+                // Update currentUser & state
                 _currentUser.value = auth.currentUser
-                _authState.value = AuthState.Success("Cuenta creada exitosamente")
+                _authState.value = AuthState.Success("Account created successfully")
             } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.message ?: "Error al crear cuenta")
+                _authState.value = AuthState.Error(e.message ?: "Create account error")
             }
         }
     }
@@ -70,9 +70,9 @@ class AuthViewModel : ViewModel() {
                 _authState.value = AuthState.Loading
                 val credential = GoogleAuthProvider.getCredential(idToken, null)
                 auth.signInWithCredential(credential).await()
-                _authState.value = AuthState.Success("Login con Google exitoso")
+                _authState.value = AuthState.Success("Successful Google Log in")
             } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.message ?: "Error al iniciar sesión con Google")
+                _authState.value = AuthState.Error(e.message ?: "Google Log in error")
             }
         }
     }

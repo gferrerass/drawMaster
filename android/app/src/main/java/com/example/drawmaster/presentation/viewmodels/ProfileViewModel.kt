@@ -36,12 +36,12 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                 if (loc != null) {
                     _uiState.value = LocationUiState.Success(loc.latitude, loc.longitude, if (loc.hasAccuracy()) loc.accuracy else null, loc.time)
                 } else {
-                    _uiState.value = LocationUiState.Error("No se obtuvo ubicación")
+                    _uiState.value = LocationUiState.Error("Couldn't obtain location")
                 }
             } catch (e: SecurityException) {
                 _uiState.value = LocationUiState.Error("Missing location permission")
             } catch (e: Exception) {
-                _uiState.value = LocationUiState.Error(e.localizedMessage ?: "Error desconocido")
+                _uiState.value = LocationUiState.Error(e.localizedMessage ?: "Unknown Error")
             }
         }
     }

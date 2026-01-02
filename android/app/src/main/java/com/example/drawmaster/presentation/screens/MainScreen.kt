@@ -26,10 +26,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AccountCircle
@@ -56,10 +52,10 @@ fun MainScreen(
                 // val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 // val clip = ClipData.newPlainText("idToken", idToken)
                 // clipboard.setPrimaryClip(clip)
-                // Toast.makeText(context, "ID token copiado", Toast.LENGTH_SHORT).show()
+                // Toast.makeText(context, "ID token copied", Toast.LENGTH_SHORT).show()
             }
             ?.addOnFailureListener { e ->
-                Log.e("TOKEN", "Error obteniendo idToken", e)
+                Log.e("TOKEN", "Error obtaining idToken", e)
             }
         if (currentUser?.uid != null) {
             inviteVm.startListeningForInvites()

@@ -53,6 +53,20 @@ fun DrawMasterNavHost(
             val gameId = backStackEntry.arguments?.getString("gameId")
             SelectImageScreen(navController = navController, gameId = gameId)
         }
+        composable(
+            route = "confirm_image/{imageUri}",
+            arguments = listOf(
+                navArgument("imageUri") { type = NavType.StringType; nullable = true }
+            )
+        ) { backStackEntry ->
+            val imageUri = backStackEntry.arguments?.getString("imageUri")
+            ConfirmImageScreen(
+                navController = navController,
+                imageUriString = imageUri,
+                remoteUrlString = null,
+                gameId = null
+            )
+        }
         // confirm image with explicit remoteUrl (when selecting Unsplash remote image)
         composable(route = "confirm_image/{imageUri}/{remoteUrl}",
             arguments = listOf(

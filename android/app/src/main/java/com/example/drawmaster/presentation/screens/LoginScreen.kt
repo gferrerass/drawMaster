@@ -26,8 +26,8 @@ fun LoginScreen(
     
     val authState by viewModel.authState.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
-    
-    // Si el usuario ya está autenticado, navegar a main_screen
+
+    // Navigating to main_screen if user has already logged in
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
             navController.navigate("main_screen") {
@@ -35,8 +35,8 @@ fun LoginScreen(
             }
         }
     }
-    
-    // Manejar estados de autenticación
+
+    // Managing authentication states
     LaunchedEffect(authState) {
         when (authState) {
             is AuthState.Success -> {
@@ -56,7 +56,7 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = if (isSignUp) "Crear Cuenta" else "Iniciar Sesión",
+            text = if (isSignUp) "Create an account" else "Log in",
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 32.dp)
         )
@@ -76,7 +76,7 @@ fun LoginScreen(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Nombre") },
+                label = { Text("Name") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
@@ -86,7 +86,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Contraseña") },
+            label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier
@@ -122,7 +122,7 @@ fun LoginScreen(
                 .height(50.dp),
             enabled = email.isNotBlank() && password.isNotBlank() && (if (isSignUp) name.isNotBlank() else true) && authState !is AuthState.Loading
         ) {
-            Text(if (isSignUp) "Registrarse" else "Iniciar Sesión")
+            Text(if (isSignUp) "Sign up" else "Log In")
         }
         
         TextButton(
@@ -133,8 +133,8 @@ fun LoginScreen(
             modifier = Modifier.padding(top = 8.dp)
         ) {
             Text(
-                if (isSignUp) "¿Ya tienes cuenta? Inicia sesión"
-                else "¿No tienes cuenta? Regístrate"
+                if (isSignUp) "Already have an account? Log in"
+                else "Don't have an account? Sign up"
             )
         }
     }

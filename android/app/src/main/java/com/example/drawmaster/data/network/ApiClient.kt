@@ -16,7 +16,7 @@ object ApiClient {
         level = HttpLoggingInterceptor.Level.BASIC
     }
 
-    /** Create a Retrofit instance that injects Authorization header using the provided TokenProvider. */
+    // Creates a Retrofit instance that injects Authorization header using the provided TokenProvider
     fun createRetrofit(tokenProvider: TokenProvider): Retrofit {
         val authInterceptor = AuthInterceptor(tokenProvider)
         val client = OkHttpClient.Builder()

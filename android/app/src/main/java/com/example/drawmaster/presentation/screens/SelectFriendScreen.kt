@@ -20,6 +20,7 @@ import com.example.drawmaster.presentation.viewmodels.FriendRequestsViewModel
 import com.example.drawmaster.presentation.viewmodels.InviteViewModel
 import com.example.drawmaster.domain.model.Friend
 import androidx.compose.material3.Text
+import androidx.compose.ui.draw.rotate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +36,16 @@ fun SelectFriendScreen(navController: NavHostController, modifier: Modifier = Mo
     Scaffold(topBar = {
         CenterAlignedTopAppBar(
             title = { Text("Select Friend", color = MaterialTheme.colorScheme.onPrimary) },
+            navigationIcon = {
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.arrow),
+                        contentDescription = "Go Back",
+                        modifier = Modifier.size(24.dp).rotate(180f),
+                        tint = Color.White
+                    )
+                }
+            },
             colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = TealBlue)
         )
     }) { inner ->

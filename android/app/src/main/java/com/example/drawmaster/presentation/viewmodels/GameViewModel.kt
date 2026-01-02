@@ -53,7 +53,7 @@ class GameViewModel : ViewModel() {
     val canvasHeight: StateFlow<Int> = _canvasHeight.asStateFlow()
 
     private var timerJob: Job? = null
-    private val totalGameTime = 15 // seconds
+    private val totalGameTime = 30 // seconds
     private var multiplayerGameId: String? = null
     private var submissionsListener: com.google.firebase.database.ValueEventListener? = null
     private var resultsListener: com.google.firebase.database.ValueEventListener? = null
