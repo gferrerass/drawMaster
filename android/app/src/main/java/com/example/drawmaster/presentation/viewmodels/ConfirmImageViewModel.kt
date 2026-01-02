@@ -5,7 +5,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
-import com.example.drawmaster.util.getIdTokenSuspend
+import com.example.drawmaster.util.FirebaseTokenProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.example.drawmaster.util.updateChildrenAwait
@@ -67,7 +67,7 @@ class ConfirmImageViewModel(
                         }
                         viewModelScope.launch {
                             try {
-                                val idToken = try { user.getIdTokenSuspend(true) } catch (_: Exception) { "" }
+                                val idToken = try { FirebaseTokenProvider.getToken(true) } catch (_: Exception) { "" }
                                 val apiUrl = com.example.drawmaster.BuildConfig.API_BASE_URL.trimEnd('/') + "/multiplayer/game/$gameId/set_reference"
                                 val client = OkHttpClient()
                                 val json = "{\"imageUrl\": \"$remoteToUse\"}"

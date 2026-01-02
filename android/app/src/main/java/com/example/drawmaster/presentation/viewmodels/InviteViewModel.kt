@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import com.example.drawmaster.util.getIdTokenSuspend
+import com.example.drawmaster.util.FirebaseTokenProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.example.drawmaster.util.setValueAwait
@@ -23,8 +23,6 @@ import okhttp3.Headers
 import org.json.JSONObject
 import java.util.UUID
 import android.util.Log
-import android.os.Handler
-import android.os.Looper
 import com.google.firebase.database.ChildEventListener
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -41,7 +39,6 @@ class InviteViewModel : ViewModel() {
     private val database = getFirebaseDatabase()
     private val auth = FirebaseAuth.getInstance()
     private val httpClient = OkHttpClient()
-    private val mainHandler = Handler(Looper.getMainLooper())
 
     // Incoming invite listener
     data class IncomingInvite(
@@ -213,7 +210,7 @@ class InviteViewModel : ViewModel() {
                 val user = auth.currentUser
                 if (user == null) { onComplete(false, "not authenticated"); return@launch }
                 try {
-                    val idToken = try { user.getIdTokenSuspend(true) } catch (_: Exception) { "" }
+                    val idToken = try { FirebaseTokenProvider.getToken(true) } catch (_: Exception) { "" }
                     val apiUrl = com.example.drawmaster.BuildConfig.API_BASE_URL.trimEnd('/') + "/multiplayer/invite/accept"
                     Log.i("InviteVM", "acceptCurrentInvite: apiUrl=$apiUrl inviteId=${inv.inviteId}")
                     val json = "{\"invite_id\":\"${inv.inviteId}\"}"
@@ -231,9 +228,9 @@ class InviteViewModel : ViewModel() {
                         val bodyStr = try { r.body?.string() } catch (_: Exception) { null }
                         Log.i("InviteVM", "accept response body: $bodyStr")
                         if (!r.isSuccessful) {
-                            mainHandler.post { onComplete(false, "http ${r.code}: ${r.message}") }
-                            return@launch
-                        }
+                                withContext(Dispatchers.Main) { onComplete(false, "http ${r.code}: ${r.message}") }
+                                return@launch
+                            }
                         // success — remove invite locally
                         try { invitesRef?.child(inv.inviteId)?.removeValue() } catch (e: Exception) { Log.w("InviteVM", "failed removing invite locally", e) }
                         _incoming.value = null
@@ -245,15 +242,15 @@ class InviteViewModel : ViewModel() {
                                 if (jo.has("gameId")) gameId = jo.optString("gameId", null)
                             }
                         } catch (e: Exception) { Log.w("InviteVM", "parsing response JSON failed", e) }
-                        mainHandler.post { onComplete(true, gameId ?: inv.gameId) }
+                        withContext(Dispatchers.Main) { onComplete(true, gameId ?: inv.gameId) }
                     }
                 } catch (e: Exception) {
                     Log.w("InviteVM", "acceptCurrentInvite failed", e)
-                    mainHandler.post { onComplete(false, e.message) }
+                        withContext(Dispatchers.Main) { onComplete(false, e.message) }
                 }
             } catch (e: Exception) {
                 Log.w("InviteVM", "acceptCurrentInvite exception", e)
-                mainHandler.post { onComplete(false, e.message) }
+                withContext(Dispatchers.Main) { onComplete(false, e.message) }
             }
         }
     }
@@ -268,7 +265,7 @@ class InviteViewModel : ViewModel() {
                 if (user == null) { onComplete(false, "not authenticated"); return@launch }
 
                 try {
-                    val idToken = try { user.getIdTokenSuspend(true) } catch (_: Exception) { "" }
+                    val idToken = try { FirebaseTokenProvider.getToken(true) } catch (_: Exception) { "" }
                     val apiUrl = com.example.drawmaster.BuildConfig.API_BASE_URL.trimEnd('/') + "/multiplayer/invite/reject"
                     Log.i("InviteVM", "rejectCurrentInvite: apiUrl=$apiUrl inviteId=${inv.inviteId}")
                     val json = "{\"invite_id\":\"${inv.inviteId}\"}"
@@ -285,22 +282,22 @@ class InviteViewModel : ViewModel() {
                         Log.i("InviteVM", "reject response: code=${r.code} message=${r.message}")
                         val bodyStr = try { r.body?.string() } catch (_: Exception) { null }
                         Log.i("InviteVM", "reject response body: $bodyStr")
-                        if (!r.isSuccessful) {
-                            mainHandler.post { onComplete(false, "http ${r.code}: ${r.message}") }
-                            return@launch
-                        }
+                            if (!r.isSuccessful) {
+                                    withContext(Dispatchers.Main) { onComplete(false, "http ${r.code}: ${r.message}") }
+                                    return@launch
+                                }
                         // remove invite locally
                         try { invitesRef?.child(inv.inviteId)?.removeValue() } catch (e: Exception) { Log.w("InviteVM","failed removing invite locally", e) }
-                        _incoming.value = null
-                        mainHandler.post { onComplete(true, null) }
+                                _incoming.value = null
+                                withContext(Dispatchers.Main) { onComplete(true, null) }
                     }
                 } catch (e: Exception) {
                     Log.w("InviteVM", "rejectCurrentInvite failed", e)
-                    mainHandler.post { onComplete(false, e.message) }
+                        withContext(Dispatchers.Main) { onComplete(false, e.message) }
                 }
             } catch (e: Exception) {
                 Log.w("InviteVM", "rejectCurrentInvite exception", e)
-                mainHandler.post { onComplete(false, e.message) }
+                withContext(Dispatchers.Main) { onComplete(false, e.message) }
             }
         }
     }
