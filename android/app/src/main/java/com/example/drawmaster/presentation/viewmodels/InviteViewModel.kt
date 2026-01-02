@@ -222,8 +222,11 @@ class InviteViewModel : ViewModel() {
                         .header("Authorization", "Bearer $idToken")
                         .header("Accept", "application/json")
                         .build()
-                    val response = withContext(Dispatchers.IO) { httpClient.newCall(req).execute() }
-                    response.use { r ->
+                    val response = try { withContext(Dispatchers.IO) { com.example.drawmaster.util.awaitResponse(httpClient, req) } } catch (e: Exception) {
+                        Log.w("InviteVM", "acceptCurrentInvite call failed", e)
+                        null
+                    }
+                    response?.use { r ->
                         Log.i("InviteVM", "accept response: code=${r.code} message=${r.message}")
                         val bodyStr = try { r.body?.string() } catch (_: Exception) { null }
                         Log.i("InviteVM", "accept response body: $bodyStr")
@@ -277,8 +280,11 @@ class InviteViewModel : ViewModel() {
                         .header("Authorization", "Bearer $idToken")
                         .header("Accept", "application/json")
                         .build()
-                    val response = withContext(Dispatchers.IO) { httpClient.newCall(req).execute() }
-                    response.use { r ->
+                    val response = try { withContext(Dispatchers.IO) { com.example.drawmaster.util.awaitResponse(httpClient, req) } } catch (e: Exception) {
+                        Log.w("InviteVM", "rejectCurrentInvite call failed", e)
+                        null
+                    }
+                    response?.use { r ->
                         Log.i("InviteVM", "reject response: code=${r.code} message=${r.message}")
                         val bodyStr = try { r.body?.string() } catch (_: Exception) { null }
                         Log.i("InviteVM", "reject response body: $bodyStr")

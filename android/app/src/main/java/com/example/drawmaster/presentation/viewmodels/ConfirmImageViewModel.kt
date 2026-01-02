@@ -79,8 +79,11 @@ class ConfirmImageViewModel(
                                     .header("Authorization", "Bearer $idToken")
                                     .header("Accept", "application/json")
                                     .build()
-                                val response = withContext(Dispatchers.IO) { client.newCall(req).execute() }
-                                response.use { r ->
+                                val response = try { withContext(Dispatchers.IO) { com.example.drawmaster.util.awaitResponse(client, req) } } catch (e: Exception) {
+                                    android.util.Log.w("ConfirmVM", "API set_reference call failed", e)
+                                    null
+                                }
+                                response?.use { r ->
                                     if (!r.isSuccessful) {
                                         android.util.Log.w("ConfirmVM", "API set_reference HTTP ${r.code}: ${r.message}")
                                     }

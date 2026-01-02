@@ -79,16 +79,19 @@ object ScoringUtil {
         return (dotProduct / (sqrt(normA) * sqrt(normB))).toFloat()
     }
 
-    private fun uriToBitmap(context: Context, uri: Uri): Bitmap {
+    private suspend fun uriToBitmap(context: Context, uri: Uri): Bitmap {
         try {
             val scheme = uri.scheme?.lowercase()
             if (scheme == "http" || scheme == "https") {
                 // Download remote image and decode using shared client
                 val client: OkHttpClient = NetworkClient.client
                 val req = Request.Builder().url(uri.toString()).build()
-                client.newCall(req).execute().use { resp ->
-                    if (!resp.isSuccessful) throw IOException("failed to download image: ${resp.code}")
-                    val stream = resp.body?.byteStream() ?: throw IOException("empty response body")
+                val resp = try { withContext(Dispatchers.IO) { com.example.drawmaster.util.awaitResponse(client, req) } } catch (e: Exception) {
+                    throw IOException("failed to download image: ${e.message}", e)
+                }
+                resp.use {
+                    if (!it.isSuccessful) throw IOException("failed to download image: ${it.code}")
+                    val stream = it.body?.byteStream() ?: throw IOException("empty response body")
                     val bmp = BitmapFactory.decodeStream(stream) ?: throw IOException("failed to decode bitmap from stream")
                     return bmp.copy(Bitmap.Config.ARGB_8888, true)
                 }

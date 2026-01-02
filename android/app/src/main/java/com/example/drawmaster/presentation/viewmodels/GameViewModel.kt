@@ -236,24 +236,21 @@ class GameViewModel : ViewModel() {
                     .header("Authorization", "Bearer $idToken")
                     .header("Accept", "application/json")
                     .build()
-                httpClient.newCall(req).enqueue(object : okhttp3.Callback {
-                    override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                        viewModelScope.launch { _gameState.value = GameScreenState.Error("submit failed: ${e.message}") }
-                    }
 
-                    override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                        response.use { r ->
-                            if (!r.isSuccessful) {
-                                viewModelScope.launch { _gameState.value = GameScreenState.Error("submit HTTP ${r.code}: ${r.message}") }
-                                return
-                            }
-                            viewModelScope.launch {
-                                _gameState.value = GameScreenState.WaitingForResults
-                                listenForResults(gameId)
-                            }
+                // Execute synchronously on IO dispatcher and update UI on Main
+                try {
+                    val resp = withContext(Dispatchers.IO) { httpClient.newCall(req).execute() }
+                    resp.use { r ->
+                        if (!r.isSuccessful) {
+                            _gameState.value = GameScreenState.Error("submit HTTP ${r.code}: ${r.message}")
+                        } else {
+                            _gameState.value = GameScreenState.WaitingForResults
+                            listenForResults(gameId)
                         }
                     }
-                })
+                } catch (e: Exception) {
+                    _gameState.value = GameScreenState.Error("submit failed: ${e.message}")
+                }
             } catch (e: Exception) {
                 _gameState.value = GameScreenState.Error("failed submitting drawing: ${e.message}")
             }
@@ -298,49 +295,40 @@ class GameViewModel : ViewModel() {
 
                 android.util.Log.i("GameVM", "submitting multiplayer drawing to $apiUrl for game=$gameId uid=${user.uid} score=${score ?: "<null>"} drawingUri=$drawingURI")
 
-                fun doCall(request: Request, attemptedRefresh: Boolean = false) {
-                    httpClient.newCall(request).enqueue(object : okhttp3.Callback {
-                        override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                            viewModelScope.launch { _gameState.value = GameScreenState.Error("submit failed: ${e.message}") }
-                        }
-
-                        override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                            response.use { r ->
-                                val code = r.code
-                                val bodyStr = try { r.body?.string() } catch (_: Exception) { null }
-                                android.util.Log.i("GameVM", "submit HTTP $code body=$bodyStr")
-                                if (code == 401 && !attemptedRefresh) {
-                                    android.util.Log.w("GameVM", "401 received; attempting token refresh and retry")
-                                    viewModelScope.launch {
-                                        try {
-                                            val newToken = try { FirebaseTokenProvider.getToken(true) } catch (_: Exception) { "" }
-                                            if (newToken.isBlank()) {
-                                                viewModelScope.launch { _gameState.value = GameScreenState.Error("token refresh returned empty token") }
-                                                return@launch
-                                            }
-                                            doCall(buildRequest(newToken), attemptedRefresh = true)
-                                        } catch (e: Exception) {
-                                            viewModelScope.launch { _gameState.value = GameScreenState.Error("token refresh failed: ${e.message}") }
-                                        }
-                                    }
+                suspend fun doCallSuspend(request: Request, attemptedRefresh: Boolean = false) {
+                    try {
+                        val r = withContext(Dispatchers.IO) { httpClient.newCall(request).execute() }
+                        r.use { resp ->
+                            val code = resp.code
+                            val bodyStr = try { resp.body?.string() } catch (_: Exception) { null }
+                            android.util.Log.i("GameVM", "submit HTTP $code body=$bodyStr")
+                            if (code == 401 && !attemptedRefresh) {
+                                android.util.Log.w("GameVM", "401 received; attempting token refresh and retry")
+                                val newToken = try { FirebaseTokenProvider.getToken(true) } catch (_: Exception) { "" }
+                                if (newToken.isBlank()) {
+                                    _gameState.value = GameScreenState.Error("token refresh returned empty token")
                                     return
                                 }
-
-                                if (!r.isSuccessful) {
-                                    viewModelScope.launch { _gameState.value = GameScreenState.Error("submit HTTP ${r.code}: ${r.message}") }
-                                    return
-                                }
-                                viewModelScope.launch {
-                                    _gameState.value = GameScreenState.WaitingForResults
-                                    listenForResults(gameId)
-                                }
+                                // retry once with refreshed token
+                                return doCallSuspend(buildRequest(newToken), attemptedRefresh = true)
                             }
+
+                            if (!resp.isSuccessful) {
+                                _gameState.value = GameScreenState.Error("submit HTTP ${resp.code}: ${resp.message}")
+                                return
+                            }
+
+                            _gameState.value = GameScreenState.WaitingForResults
+                            listenForResults(gameId)
                         }
-                    })
+                    } catch (e: Exception) {
+                        _gameState.value = GameScreenState.Error("submit failed: ${e.message}")
+                    }
                 }
 
                 val initialReq = buildRequest(token)
-                doCall(initialReq, attemptedRefresh = false)
+                // call suspend version
+                doCallSuspend(initialReq, attemptedRefresh = false)
             } catch (e: Exception) {
                 _gameState.value = GameScreenState.Error("failed submitting drawing: ${e.message}")
             }
