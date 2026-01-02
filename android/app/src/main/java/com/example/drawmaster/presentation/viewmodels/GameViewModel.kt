@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.example.drawmaster.util.getIdTokenSuspend
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.MediaType.Companion.toMediaType
@@ -62,14 +63,46 @@ class GameViewModel : ViewModel() {
     private val httpClient = OkHttpClient()
     private val mainHandler = Handler(Looper.getMainLooper())
 
+        fun listenForResults(gameId: String) {
+        try {
+            val database = com.example.drawmaster.util.getFirebaseDatabase()
+            val resultsRef = database.reference.child("games").child(gameId).child("results")
+            resultsListener = object : com.google.firebase.database.ValueEventListener {
+                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                    if (!snapshot.exists()) return
+                    val out = mutableMapOf<String, Any?>()
+                    // If the results node contains primitive map keys, snapshot.value may be a Map
+                    val snapVal = snapshot.value
+                    if (snapVal is Map<*, *>) {
+                        for ((k, v) in snapVal) {
+                            if (k is String) out[k] = v
+                        }
+                    } else {
+                        // fallback: build from children
+                        for (child in snapshot.children) {
+                            val key = child.key ?: continue
+                            out[key] = child.value
+                        }
+                    }
+                    _results.value = out
+                }
+
+                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {}
+            }
+                resultsListener?.let { resultsRef.addValueEventListener(it) }
+        } catch (e: Exception) {
+            android.util.Log.w("GameVM", "listenForResults error", e)
+        }
+    }
+
     fun startGame(imageName: String = "drawing_challenge", gameId: String? = null) {
         _imageName.value = imageName
         _strokes.value = emptyList()
         multiplayerGameId = gameId
-        if (multiplayerGameId != null) {
-            // start listening for results if they appear
-            listenForResults(multiplayerGameId!!)
-        }
+            multiplayerGameId?.let { id ->
+                // start listening for results if they appear
+                listenForResults(id)
+            }
         startTimer()
     }
 
@@ -140,7 +173,10 @@ class GameViewModel : ViewModel() {
 
         // No drawing to submit: call the server submit endpoint with score=0 so the server
         // (with admin privileges) writes submissions and computes results reliably.
-        val gameId = multiplayerGameId!!
+            val gameId = multiplayerGameId ?: run {
+                _gameState.value = GameScreenState.Error("no game id")
+                return
+            }
         try {
             val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
             if (user == null) {
@@ -181,7 +217,8 @@ class GameViewModel : ViewModel() {
                     _gameState.value = GameScreenState.Error("not authenticated")
                     return@launch
                 }
-                val idToken = try { user.getIdToken(true).result?.token ?: "" } catch (_: Exception) { "" }
+                    // synchronous token fetch is brittle; attempt to fetch token if available otherwise proceed with empty token
+                    val idToken = try { user.getIdToken(true).result?.token ?: "" } catch (_: Exception) { "" }
                 val apiUrl = com.example.drawmaster.BuildConfig.API_BASE_URL.trimEnd('/') + "/multiplayer/game/$gameId/submit"
                 val json = org.json.JSONObject().apply {
                     put("drawingUri", drawingURI)
@@ -231,18 +268,15 @@ class GameViewModel : ViewModel() {
     }
 
     fun submitMultiplayerDrawingForGame(gameId: String, drawingURI: String, originalURI: String, score: Int?) {
-        try {
-            val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-            if (user == null) {
-                _gameState.value = GameScreenState.Error("not authenticated")
-                return
-            }
-            user.getIdToken(true).addOnCompleteListener { tokenTask ->
-                if (!tokenTask.isSuccessful) {
-                    mainHandler.post { _gameState.value = GameScreenState.Error("token error: ${tokenTask.exception?.message}") }
-                    return@addOnCompleteListener
-                }
-                val idToken = tokenTask.result?.token ?: ""
+        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        if (user == null) {
+            _gameState.value = GameScreenState.Error("not authenticated")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val token = try { user.getIdTokenSuspend(true) } catch (_: Exception) { "" }
                 val apiUrl = com.example.drawmaster.BuildConfig.API_BASE_URL.trimEnd('/') + "/multiplayer/game/$gameId/submit"
                 val json = org.json.JSONObject().apply {
                     put("drawingUri", drawingURI)
@@ -252,25 +286,16 @@ class GameViewModel : ViewModel() {
                 }.toString()
                 val mediaType = "application/json; charset=utf-8".toMediaType()
                 val body = json.toRequestBody(mediaType)
-                val req = Request.Builder()
+
+                fun buildRequest(t: String): Request = Request.Builder()
                     .url(apiUrl)
                     .post(body)
-                    .header("Authorization", "Bearer $idToken")
+                    .header("Authorization", "Bearer $t")
                     .header("Accept", "application/json")
                     .build()
-                // helper to build request with token
-                fun buildRequest(token: String): Request {
-                    return Request.Builder()
-                        .url(apiUrl)
-                        .post(body)
-                        .header("Authorization", "Bearer $token")
-                        .header("Accept", "application/json")
-                        .build()
-                }
 
                 android.util.Log.i("GameVM", "submitting multiplayer drawing to $apiUrl for game=$gameId uid=${user.uid} score=${score ?: "<null>"} drawingUri=$drawingURI")
 
-                // perform call with retry-on-token-early: retry once after refreshing token
                 fun doCall(request: Request, attemptedRefresh: Boolean = false) {
                     httpClient.newCall(request).enqueue(object : okhttp3.Callback {
                         override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
@@ -283,19 +308,18 @@ class GameViewModel : ViewModel() {
                                 val bodyStr = try { r.body?.string() } catch (_: Exception) { null }
                                 android.util.Log.i("GameVM", "submit HTTP $code body=$bodyStr")
                                 if (code == 401 && !attemptedRefresh) {
-                                    // possible "Token used too early" - refresh token and retry once
                                     android.util.Log.w("GameVM", "401 received; attempting token refresh and retry")
-                                    user.getIdToken(true).addOnCompleteListener { tokenTask ->
-                                        if (!tokenTask.isSuccessful) {
-                                            mainHandler.post { _gameState.value = GameScreenState.Error("token refresh failed: ${tokenTask.exception?.message}") }
-                                            return@addOnCompleteListener
+                                    viewModelScope.launch {
+                                        try {
+                                            val newToken = try { user.getIdTokenSuspend(true) } catch (_: Exception) { "" }
+                                            if (newToken.isBlank()) {
+                                                mainHandler.post { _gameState.value = GameScreenState.Error("token refresh returned empty token") }
+                                                return@launch
+                                            }
+                                            doCall(buildRequest(newToken), attemptedRefresh = true)
+                                        } catch (e: Exception) {
+                                            mainHandler.post { _gameState.value = GameScreenState.Error("token refresh failed: ${e.message}") }
                                         }
-                                        val newToken = tokenTask.result?.token ?: ""
-                                        if (newToken.isBlank()) {
-                                            mainHandler.post { _gameState.value = GameScreenState.Error("token refresh returned empty token") }
-                                            return@addOnCompleteListener
-                                        }
-                                        doCall(buildRequest(newToken), attemptedRefresh = true)
                                     }
                                     return
                                 }
@@ -313,55 +337,15 @@ class GameViewModel : ViewModel() {
                     })
                 }
 
-                // initial call with current token
-                val initialReq = buildRequest(idToken)
+                val initialReq = buildRequest(token)
                 doCall(initialReq, attemptedRefresh = false)
+            } catch (e: Exception) {
+                _gameState.value = GameScreenState.Error("failed submitting drawing: ${e.message}")
             }
-        } catch (e: Exception) {
-            _gameState.value = GameScreenState.Error("failed submitting drawing: ${e.message}")
         }
     }
 
-    private fun observeSubmissionsAndCompute(gameId: String) {
-        submissionsListener = null
-    }
 
-    fun listenForResults(gameId: String) {
-        try {
-            val database = try {
-                val url = com.example.drawmaster.BuildConfig.FIREBASE_DB_URL
-                if (url.isNullOrBlank()) com.google.firebase.database.FirebaseDatabase.getInstance() else com.google.firebase.database.FirebaseDatabase.getInstance(url)
-            } catch (_: Exception) {
-                com.google.firebase.database.FirebaseDatabase.getInstance()
-            }
-            val resultsRef = database.reference.child("games").child(gameId).child("results")
-            resultsListener = object : com.google.firebase.database.ValueEventListener {
-                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
-                    if (!snapshot.exists()) return
-                    val out = mutableMapOf<String, Any?>()
-                    // If the results node contains primitive map keys, snapshot.value may be a Map
-                    val snapVal = snapshot.value
-                    if (snapVal is Map<*, *>) {
-                        for ((k, v) in snapVal) {
-                            if (k is String) out[k] = v
-                        }
-                    } else {
-                        // fallback: build from children
-                        for (child in snapshot.children) {
-                            val key = child.key ?: continue
-                            out[key] = child.value
-                        }
-                    }
-                    _results.value = out
-                }
-
-                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {}
-            }
-            resultsRef.addValueEventListener(resultsListener!!)
-        } catch (e: Exception) {
-            android.util.Log.w("GameVM", "listenForResults error", e)
-        }
-    }
     private fun startTimer() {
         timerJob?.cancel()
         _gameState.value = GameScreenState.Playing(timeRemaining = totalGameTime)
@@ -384,22 +368,12 @@ class GameViewModel : ViewModel() {
         timerJob?.cancel()
         // remove any firebase listeners
         if (submissionsListener != null && multiplayerGameId != null) {
-            val database = try {
-                val url = com.example.drawmaster.BuildConfig.FIREBASE_DB_URL
-                if (url.isNullOrBlank()) com.google.firebase.database.FirebaseDatabase.getInstance() else com.google.firebase.database.FirebaseDatabase.getInstance(url)
-            } catch (_: Exception) {
-                com.google.firebase.database.FirebaseDatabase.getInstance()
-            }
-            try { database.reference.child("games").child(multiplayerGameId!!).child("submissions").removeEventListener(submissionsListener!!) } catch (_: Exception) {}
+            val database = com.example.drawmaster.util.getFirebaseDatabase()
+                try { multiplayerGameId?.let { database.reference.child("games").child(it).child("submissions").removeEventListener(submissionsListener!!) } } catch (_: Exception) {}
         }
         if (resultsListener != null && multiplayerGameId != null) {
-            val database = try {
-                val url = com.example.drawmaster.BuildConfig.FIREBASE_DB_URL
-                if (url.isNullOrBlank()) com.google.firebase.database.FirebaseDatabase.getInstance() else com.google.firebase.database.FirebaseDatabase.getInstance(url)
-            } catch (_: Exception) {
-                com.google.firebase.database.FirebaseDatabase.getInstance()
-            }
-            try { database.reference.child("games").child(multiplayerGameId!!).child("results").removeEventListener(resultsListener!!) } catch (_: Exception) {}
+            val database = com.example.drawmaster.util.getFirebaseDatabase()
+                try { multiplayerGameId?.let { database.reference.child("games").child(it).child("results").removeEventListener(resultsListener!!) } } catch (_: Exception) {}
         }
     }
 }

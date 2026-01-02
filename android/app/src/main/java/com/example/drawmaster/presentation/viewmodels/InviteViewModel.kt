@@ -4,10 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
+import com.example.drawmaster.util.getFirebaseDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.example.drawmaster.util.getIdTokenSuspend
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.example.drawmaster.util.setValueAwait
+import com.example.drawmaster.util.updateChildrenAwait
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.MediaType.Companion.toMediaType
@@ -32,12 +38,7 @@ class InviteViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    private val database = try {
-        val url = com.example.drawmaster.BuildConfig.FIREBASE_DB_URL
-        if (url.isNullOrBlank()) FirebaseDatabase.getInstance() else FirebaseDatabase.getInstance(url)
-    } catch (e: Exception) {
-        FirebaseDatabase.getInstance()
-    }
+    private val database = getFirebaseDatabase()
     private val auth = FirebaseAuth.getInstance()
     private val httpClient = OkHttpClient()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -81,34 +82,33 @@ class InviteViewModel : ViewModel() {
                     "createdAt" to now,
                     "expiresAt" to (now + 60_000) // expires in 60s
                 )
-                inviteRef.setValue(payload).addOnCompleteListener { task ->
-                    _sending.value = false
-                    if (task.isSuccessful) {
+
+                try {
+                    withContext(Dispatchers.IO) {
+                        inviteRef.setValueAwait(payload)
                         android.util.Log.i("InviteVM", "invite sent to $toUid gameId=$gameId inviteId=$inviteId payload=$payload")
+                        // create initial game node so the inviter can listen to it
+                        val gameRef = database.reference.child("games").child(gameId)
+                        val gamePayload = mapOf(
+                            "gameId" to gameId,
+                            "playerA" to fromUid,
+                            "state" to "pending",
+                            "createdAt" to now
+                        )
                         try {
-                            // create initial game node so the inviter can listen to it
-                            val gameRef = database.reference.child("games").child(gameId)
-                            // create initial game node for inviter, do NOT set playerB yet
-                            val gamePayload = mapOf(
-                                "gameId" to gameId,
-                                "playerA" to fromUid,
-                                "state" to "pending",
-                                "createdAt" to now
-                            )
-                            gameRef.setValue(gamePayload).addOnCompleteListener { gtask ->
-                                if (!gtask.isSuccessful) android.util.Log.w("InviteVM", "failed to create initial game node: ", gtask.exception)
-                                onComplete(true, gameId)
-                            }
+                            gameRef.setValueAwait(gamePayload)
                         } catch (e: Exception) {
-                            android.util.Log.w("InviteVM", "error creating initial game node", e)
-                            onComplete(true, gameId)
+                            android.util.Log.w("InviteVM", "failed to create initial game node: ", e)
                         }
-                    } else {
-                        val msg = task.exception?.message ?: "failed to send"
-                        _error.value = msg
-                        android.util.Log.w("InviteVM", "invite failed to send: $msg", task.exception)
-                        onComplete(false, msg)
                     }
+                    _sending.value = false
+                    onComplete(true, gameId)
+                } catch (e: Exception) {
+                    _sending.value = false
+                    val msg = e.message ?: "failed to send"
+                    _error.value = msg
+                    android.util.Log.w("InviteVM", "invite failed to send: $msg", e)
+                    onComplete(false, msg)
                 }
             } catch (e: Exception) {
                 _sending.value = false
@@ -117,6 +117,8 @@ class InviteViewModel : ViewModel() {
             }
         }
     }
+
+    
 
     /** Start listening for invites addressed to the current user. */
     fun startListeningForInvites() {
@@ -137,6 +139,7 @@ class InviteViewModel : ViewModel() {
             }
             return
         }
+
         // avoid double-registering
         if (invitesRef != null) return
         val ref = database.reference.child("invites").child(uid)
@@ -145,27 +148,27 @@ class InviteViewModel : ViewModel() {
             override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
                 try {
                     val map = snapshot.value as? Map<*, *> ?: return
-                        val inviteId = map["inviteId"] as? String ?: snapshot.key ?: return
-                        val fromUid = map["fromUid"] as? String ?: ""
-                        val fromName = map["fromName"] as? String ?: map["fromDisplayName"] as? String ?: "Player"
-                        val gameId = map["gameId"] as? String ?: ""
-                        val createdAt = (map["createdAt"] as? Long) ?: (map["createdAt"] as? Number)?.toLong() ?: 0L
-                        val expiresAt = (map["expiresAt"] as? Long) ?: (map["expiresAt"] as? Number)?.toLong() ?: 0L
-                        val status = map["status"] as? String ?: "pending"
-                        val currentUid = auth.currentUser?.uid
-                        android.util.Log.i("InviteVM", "onChildAdded snapshotKey=${snapshot.key} currentUser=$currentUid inviteFrom=$fromUid status=$status data=$map")
+                    val inviteId = map["inviteId"] as? String ?: snapshot.key ?: return
+                    val fromUid = map["fromUid"] as? String ?: ""
+                    val fromName = map["fromName"] as? String ?: map["fromDisplayName"] as? String ?: "Player"
+                    val gameId = map["gameId"] as? String ?: ""
+                    val createdAt = (map["createdAt"] as? Long) ?: (map["createdAt"] as? Number)?.toLong() ?: 0L
+                    val expiresAt = (map["expiresAt"] as? Long) ?: (map["expiresAt"] as? Number)?.toLong() ?: 0L
+                    val status = map["status"] as? String ?: "pending"
+                    val currentUid = auth.currentUser?.uid
+                    android.util.Log.i("InviteVM", "onChildAdded snapshotKey=${snapshot.key} currentUser=$currentUid inviteFrom=$fromUid status=$status data=$map")
 
-                        // ignore invites that are not pending, expired, or sent by self
-                        val now = System.currentTimeMillis()
-                        if (status != "pending") return
-                        if (expiresAt != 0L && expiresAt < now) {
-                            // cleanup expired invite
-                            try { snapshot.ref.removeValue() } catch (_: Exception) {}
-                            return
-                        }
-                        if (fromUid == currentUid) return
+                    // ignore invites that are not pending, expired, or sent by self
+                    val now = System.currentTimeMillis()
+                    if (status != "pending") return
+                    if (expiresAt != 0L && expiresAt < now) {
+                        // cleanup expired invite
+                        try { snapshot.ref.removeValue() } catch (_: Exception) {}
+                        return
+                    }
+                    if (fromUid == currentUid) return
 
-                        _incoming.value = IncomingInvite(inviteId, fromUid, fromName, gameId, createdAt, expiresAt)
+                    _incoming.value = IncomingInvite(inviteId, fromUid, fromName, gameId, createdAt, expiresAt)
                 } catch (_: Exception) {}
             }
 
@@ -179,6 +182,7 @@ class InviteViewModel : ViewModel() {
                     }
                 } catch (_: Exception) {}
             }
+
             override fun onChildRemoved(snapshot: DataSnapshot) {
                 // if the active invite was removed, clear it
                 val key = snapshot.key
@@ -188,6 +192,7 @@ class InviteViewModel : ViewModel() {
             }
 
             override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) {}
+
             override fun onCancelled(error: DatabaseError) {
                 // permission denied or other DB errors surface here
                 android.util.Log.w("InviteVM", "invites listener cancelled: ${error.code} ${error.message}")
@@ -205,16 +210,10 @@ class InviteViewModel : ViewModel() {
         val inv = _incoming.value ?: run { onComplete(false, "no invite"); return }
         viewModelScope.launch {
             try {
-                // call backend endpoint to accept invite (server will create game node)
                 val user = auth.currentUser
                 if (user == null) { onComplete(false, "not authenticated"); return@launch }
-                    user.getIdToken(true).addOnCompleteListener { tokenTask ->
-                    if (!tokenTask.isSuccessful) {
-                        Log.w("InviteVM", "getIdToken failed", tokenTask.exception)
-                        mainHandler.post { onComplete(false, tokenTask.exception?.message) }
-                        return@addOnCompleteListener
-                    }
-                    val idToken = tokenTask.result?.token ?: ""
+                try {
+                    val idToken = try { user.getIdTokenSuspend(true) } catch (_: Exception) { "" }
                     val apiUrl = com.example.drawmaster.BuildConfig.API_BASE_URL.trimEnd('/') + "/multiplayer/invite/accept"
                     Log.i("InviteVM", "acceptCurrentInvite: apiUrl=$apiUrl inviteId=${inv.inviteId}")
                     val json = "{\"invite_id\":\"${inv.inviteId}\"}"
@@ -226,38 +225,31 @@ class InviteViewModel : ViewModel() {
                         .header("Authorization", "Bearer $idToken")
                         .header("Accept", "application/json")
                         .build()
-                    httpClient.newCall(req).enqueue(object : okhttp3.Callback {
-                        override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                            Log.w("InviteVM", "accept request failed", e)
-                            mainHandler.post { onComplete(false, e.message) }
+                    val response = withContext(Dispatchers.IO) { httpClient.newCall(req).execute() }
+                    response.use { r ->
+                        Log.i("InviteVM", "accept response: code=${r.code} message=${r.message}")
+                        val bodyStr = try { r.body?.string() } catch (_: Exception) { null }
+                        Log.i("InviteVM", "accept response body: $bodyStr")
+                        if (!r.isSuccessful) {
+                            mainHandler.post { onComplete(false, "http ${r.code}: ${r.message}") }
+                            return@launch
                         }
-
-                        override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                            response.use { r ->
-                                Log.i("InviteVM", "accept response: code=${r.code} message=${r.message}")
-                                val bodyStr = r.body?.string()
-                                Log.i("InviteVM", "accept response body: $bodyStr")
-                                if (!r.isSuccessful) {
-                                    mainHandler.post { onComplete(false, "http ${r.code}: ${r.message}") }
-                                    return
-                                }
-                                // success — remove invite locally
-                                try {
-                                    invitesRef?.child(inv.inviteId)?.removeValue()
-                                } catch (e: Exception) { Log.w("InviteVM", "failed removing invite locally", e) }
-                                _incoming.value = null
-                                // try to parse gameId from response body if present
-                                var gameId: String? = null
-                                try {
-                                    if (!bodyStr.isNullOrBlank()) {
-                                        val jo = JSONObject(bodyStr)
-                                        if (jo.has("gameId")) gameId = jo.optString("gameId", null)
-                                    }
-                                } catch (e: Exception) { Log.w("InviteVM", "parsing response JSON failed", e) }
-                                mainHandler.post { onComplete(true, gameId ?: inv.gameId) }
+                        // success — remove invite locally
+                        try { invitesRef?.child(inv.inviteId)?.removeValue() } catch (e: Exception) { Log.w("InviteVM", "failed removing invite locally", e) }
+                        _incoming.value = null
+                        // try to parse gameId from response body if present
+                        var gameId: String? = null
+                        try {
+                            if (!bodyStr.isNullOrBlank()) {
+                                val jo = JSONObject(bodyStr)
+                                if (jo.has("gameId")) gameId = jo.optString("gameId", null)
                             }
-                        }
-                    })
+                        } catch (e: Exception) { Log.w("InviteVM", "parsing response JSON failed", e) }
+                        mainHandler.post { onComplete(true, gameId ?: inv.gameId) }
+                    }
+                } catch (e: Exception) {
+                    Log.w("InviteVM", "acceptCurrentInvite failed", e)
+                    mainHandler.post { onComplete(false, e.message) }
                 }
             } catch (e: Exception) {
                 Log.w("InviteVM", "acceptCurrentInvite exception", e)
@@ -274,13 +266,9 @@ class InviteViewModel : ViewModel() {
                 // call backend reject endpoint so server records rejection
                 val user = auth.currentUser
                 if (user == null) { onComplete(false, "not authenticated"); return@launch }
-                    user.getIdToken(true).addOnCompleteListener { tokenTask ->
-                    if (!tokenTask.isSuccessful) {
-                        Log.w("InviteVM", "getIdToken failed", tokenTask.exception)
-                        mainHandler.post { onComplete(false, tokenTask.exception?.message) }
-                        return@addOnCompleteListener
-                    }
-                    val idToken = tokenTask.result?.token ?: ""
+
+                try {
+                    val idToken = try { user.getIdTokenSuspend(true) } catch (_: Exception) { "" }
                     val apiUrl = com.example.drawmaster.BuildConfig.API_BASE_URL.trimEnd('/') + "/multiplayer/invite/reject"
                     Log.i("InviteVM", "rejectCurrentInvite: apiUrl=$apiUrl inviteId=${inv.inviteId}")
                     val json = "{\"invite_id\":\"${inv.inviteId}\"}"
@@ -292,28 +280,23 @@ class InviteViewModel : ViewModel() {
                         .header("Authorization", "Bearer $idToken")
                         .header("Accept", "application/json")
                         .build()
-                    httpClient.newCall(req).enqueue(object : okhttp3.Callback {
-                        override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                            Log.w("InviteVM", "reject request failed", e)
-                            mainHandler.post { onComplete(false, e.message) }
+                    val response = withContext(Dispatchers.IO) { httpClient.newCall(req).execute() }
+                    response.use { r ->
+                        Log.i("InviteVM", "reject response: code=${r.code} message=${r.message}")
+                        val bodyStr = try { r.body?.string() } catch (_: Exception) { null }
+                        Log.i("InviteVM", "reject response body: $bodyStr")
+                        if (!r.isSuccessful) {
+                            mainHandler.post { onComplete(false, "http ${r.code}: ${r.message}") }
+                            return@launch
                         }
-
-                        override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                            response.use { r ->
-                                Log.i("InviteVM", "reject response: code=${r.code} message=${r.message}")
-                                val bodyStr = r.body?.string()
-                                Log.i("InviteVM", "reject response body: $bodyStr")
-                                if (!r.isSuccessful) {
-                                    mainHandler.post { onComplete(false, "http ${r.code}: ${r.message}") }
-                                    return
-                                }
-                                // remove invite locally
-                                try { invitesRef?.child(inv.inviteId)?.removeValue() } catch (e: Exception) { Log.w("InviteVM","failed removing invite locally", e) }
-                                _incoming.value = null
-                                mainHandler.post { onComplete(true, null) }
-                            }
-                        }
-                    })
+                        // remove invite locally
+                        try { invitesRef?.child(inv.inviteId)?.removeValue() } catch (e: Exception) { Log.w("InviteVM","failed removing invite locally", e) }
+                        _incoming.value = null
+                        mainHandler.post { onComplete(true, null) }
+                    }
+                } catch (e: Exception) {
+                    Log.w("InviteVM", "rejectCurrentInvite failed", e)
+                    mainHandler.post { onComplete(false, e.message) }
                 }
             } catch (e: Exception) {
                 Log.w("InviteVM", "rejectCurrentInvite exception", e)

@@ -5,6 +5,13 @@ import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
+import com.example.drawmaster.util.getIdTokenSuspend
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.example.drawmaster.util.updateChildrenAwait
+import com.google.firebase.database.DatabaseReference
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import com.google.firebase.database.FirebaseDatabase
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -58,35 +65,31 @@ class ConfirmImageViewModel(
                             navController.navigate("game_screen/$encodedUri/$gameId")
                             return
                         }
-                        user.getIdToken(true).addOnCompleteListener { tokenTask ->
-                            val idToken = tokenTask.result?.token ?: ""
-                            val apiUrl = com.example.drawmaster.BuildConfig.API_BASE_URL.trimEnd('/') + "/multiplayer/game/$gameId/set_reference"
-                            val client = OkHttpClient()
-                            val json = "{\"imageUrl\": \"$remoteToUse\"}"
-                            val mediaType = "application/json; charset=utf-8".toMediaType()
-                            val body = json.toRequestBody(mediaType)
-                            val req = Request.Builder()
-                                .url(apiUrl)
-                                .post(body)
-                                .header("Authorization", "Bearer $idToken")
-                                .header("Accept", "application/json")
-                                .build()
-                            val mainHandler = Handler(Looper.getMainLooper())
-                            client.newCall(req).enqueue(object : okhttp3.Callback {
-                                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                                    android.util.Log.w("ConfirmVM", "API set_reference call failed", e)
-                                    mainHandler.post { navController.navigate("game_screen/$encodedUri/$gameId") }
-                                }
-
-                                override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                                    response.use { r ->
-                                        if (!r.isSuccessful) {
-                                            android.util.Log.w("ConfirmVM", "API set_reference HTTP ${r.code}: ${r.message}")
-                                        }
-                                        mainHandler.post { navController.navigate("game_screen/$encodedUri/$gameId") }
+                        viewModelScope.launch {
+                            try {
+                                val idToken = try { user.getIdTokenSuspend(true) } catch (_: Exception) { "" }
+                                val apiUrl = com.example.drawmaster.BuildConfig.API_BASE_URL.trimEnd('/') + "/multiplayer/game/$gameId/set_reference"
+                                val client = OkHttpClient()
+                                val json = "{\"imageUrl\": \"$remoteToUse\"}"
+                                val mediaType = "application/json; charset=utf-8".toMediaType()
+                                val body = json.toRequestBody(mediaType)
+                                val req = Request.Builder()
+                                    .url(apiUrl)
+                                    .post(body)
+                                    .header("Authorization", "Bearer $idToken")
+                                    .header("Accept", "application/json")
+                                    .build()
+                                val response = withContext(Dispatchers.IO) { client.newCall(req).execute() }
+                                response.use { r ->
+                                    if (!r.isSuccessful) {
+                                        android.util.Log.w("ConfirmVM", "API set_reference HTTP ${r.code}: ${r.message}")
                                     }
                                 }
-                            })
+                            } catch (e: Exception) {
+                                android.util.Log.w("ConfirmVM", "API set_reference call failed", e)
+                            } finally {
+                                withContext(Dispatchers.Main) { navController.navigate("game_screen/$encodedUri/$gameId") }
+                            }
                         }
                         return
                     } catch (e: Exception) {
@@ -97,19 +100,20 @@ class ConfirmImageViewModel(
 
                 try {
                     // use the same DB selection logic as elsewhere (respect BuildConfig.FIREBASE_DB_URL)
-                    val database = try {
-                        val url = com.example.drawmaster.BuildConfig.FIREBASE_DB_URL
-                        if (url.isNullOrBlank()) FirebaseDatabase.getInstance() else FirebaseDatabase.getInstance(url)
-                    } catch (_: Exception) {
-                        FirebaseDatabase.getInstance()
-                    }
+                        val database = com.example.drawmaster.util.getFirebaseDatabase()
                     val updates = mapOf<String, Any>(
                         "state" to "started",
                         "imageUri" to finalUri,
                         "startedAt" to System.currentTimeMillis()
                     )
-                    database.reference.child("games").child(gameId).updateChildren(updates).addOnCompleteListener { task ->
-                        if (!task.isSuccessful) android.util.Log.w("ConfirmVM", "failed updating game node", task.exception)
+                    viewModelScope.launch {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                database.reference.child("games").child(gameId).updateChildrenAwait(updates)
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("ConfirmVM", "failed updating game node", e)
+                        }
                         navController.navigate("game_screen/$encodedUri/$gameId")
                     }
                 } catch (e: Exception) {
@@ -132,4 +136,6 @@ class ConfirmImageViewModel(
     fun onChooseDifferentImageClicked(navController: NavHostController) {
         navController.popBackStack()
     }
+
+    
 }

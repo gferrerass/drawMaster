@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -53,6 +54,7 @@ import com.example.drawmaster.presentation.viewmodels.GameViewModel
 
 import com.example.drawmaster.ui.theme.DrawMasterTheme
 import com.example.drawmaster.ui.theme.TealBlue
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,12 +80,7 @@ fun GameOverScreen(
      
     if (!gameId.isNullOrBlank()) {
         // listen for server-written results in RTDB for the given gameId
-        val database = try {
-            val url = com.example.drawmaster.BuildConfig.FIREBASE_DB_URL
-            if (url.isNullOrBlank()) com.google.firebase.database.FirebaseDatabase.getInstance() else com.google.firebase.database.FirebaseDatabase.getInstance(url)
-        } catch (_: Exception) {
-            com.google.firebase.database.FirebaseDatabase.getInstance()
-        }
+        val database = com.example.drawmaster.util.getFirebaseDatabase()
         DisposableEffect(gameId) {
             val ref = database.reference.child("games").child(gameId).child("results")
             val listener = object : com.google.firebase.database.ValueEventListener {
@@ -104,21 +101,19 @@ fun GameOverScreen(
                 // read once
                 subsRef.get().addOnSuccessListener { snap ->
                     if (!snap.exists()) {
-                        // no submission for this user yet — if we have a drawingUri, send it to server
-                                if (!drawingUriString.isNullOrBlank()) {
-                            // compute score in background and submit with score (use runBlocking inside a thread)
-                            Thread {
-                                val sc = kotlinx.coroutines.runBlocking {
-                                    try {
+                        if (!drawingUriString.isNullOrBlank()) {
+                            coroutineScope.launch {
+                                val sc = try {
+                                    withContext(Dispatchers.Default) {
                                         com.example.drawmaster.presentation.scoring.ScoringUtil.computeScore(context, drawingUriString, originalUriString)
-                                    } catch (e: Exception) {
-                                        android.util.Log.w("GameOverScreen", "computeScore exception", e)
-                                        0
                                     }
+                                } catch (e: Exception) {
+                                    android.util.Log.w("GameOverScreen", "computeScore exception", e)
+                                    0
                                 }
                                 android.util.Log.i("GameOverScreen", "computed score=$sc for gameId=$gameId uid=${com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid}")
                                 gameVm.submitMultiplayerDrawingForGame(gameId, drawingUriString, originalUriString ?: "", sc)
-                            }.start()
+                            }
                         }
                     } else {
                         // already submitted; ensure we listen for results
