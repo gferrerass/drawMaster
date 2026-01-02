@@ -85,7 +85,7 @@ fun GameScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text("Draw & Match", color = Color.White)
+                    Text("DrawMaster", color = Color.White)
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = TealBlue

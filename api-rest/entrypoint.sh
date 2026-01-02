@@ -19,4 +19,14 @@ else
 fi
 
 echo "Starting gunicorn"
-exec gunicorn --bind 0.0.0.0:5000 wsgi:application --workers 2
+# Use gthread worker for better handling of concurrent requests and streaming
+# Increase timeout so long responses aren't cut off; tune threads/workers as needed
+exec gunicorn --bind 0.0.0.0:5000 wsgi:application \
+    --workers 2 \
+    --worker-class gthread \
+    --threads 4 \
+    --timeout 120 \
+    --keep-alive 5 \
+    --access-logfile - \
+    --error-logfile - \
+    --log-level info

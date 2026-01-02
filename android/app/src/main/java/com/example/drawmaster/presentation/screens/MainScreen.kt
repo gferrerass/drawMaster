@@ -43,20 +43,12 @@ fun MainScreen(
     val context = LocalContext.current
 
     LaunchedEffect(currentUser?.uid) {
-        val user = FirebaseAuth.getInstance().currentUser
-        user?.getIdToken(true)
-            ?.addOnSuccessListener { result ->
-                val idToken = result.token
-                Log.i("TOKEN", idToken ?: "null")
-                // Uncomment to copy token to clipboard for quick testing
-                // val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                // val clip = ClipData.newPlainText("idToken", idToken)
-                // clipboard.setPrimaryClip(clip)
-                // Toast.makeText(context, "ID token copied", Toast.LENGTH_SHORT).show()
-            }
-            ?.addOnFailureListener { e ->
-                Log.e("TOKEN", "Error obtaining idToken", e)
-            }
+        try {
+            val token = com.example.drawmaster.util.FirebaseTokenProvider.getToken(true)
+            Log.i("TOKEN", token ?: "null")
+        } catch (e: Exception) {
+            Log.e("TOKEN", "Error obteniendo idToken", e)
+        }
         if (currentUser?.uid != null) {
             inviteVm.startListeningForInvites()
         }

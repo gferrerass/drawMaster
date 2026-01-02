@@ -1,15 +1,13 @@
 package com.example.drawmaster.data.network
 
-import com.google.firebase.auth.FirebaseAuth
-import com.google.android.gms.tasks.Tasks
+import com.example.drawmaster.util.FirebaseTokenProvider as UtilFirebaseTokenProvider
+import kotlinx.coroutines.runBlocking
 
 class FirebaseTokenProvider : TokenProvider {
     override fun getToken(): String? {
         return try {
-            val user = FirebaseAuth.getInstance().currentUser ?: return null
-            val task = user.getIdToken(false)
-            val result = Tasks.await(task)
-            result?.token
+            val token = runBlocking { UtilFirebaseTokenProvider.getToken(false) }
+            if (token.isBlank()) null else token
         } catch (e: Exception) {
             null
         }

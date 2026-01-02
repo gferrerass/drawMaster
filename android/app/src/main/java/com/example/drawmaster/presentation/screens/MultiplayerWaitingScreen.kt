@@ -14,12 +14,7 @@ import com.google.firebase.database.FirebaseDatabase
 @Composable
 fun MultiplayerWaitingScreen(navController: NavHostController, gameId: String, modifier: Modifier = Modifier) {
     val auth = FirebaseAuth.getInstance()
-    val database = try {
-        val url = com.example.drawmaster.BuildConfig.FIREBASE_DB_URL
-        if (url.isNullOrBlank()) FirebaseDatabase.getInstance() else FirebaseDatabase.getInstance(url)
-    } catch (_: Exception) {
-        FirebaseDatabase.getInstance()
-    }
+    val database = com.example.drawmaster.util.getFirebaseDatabase()
 
     var gameData by remember { mutableStateOf<Map<String, Any>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
