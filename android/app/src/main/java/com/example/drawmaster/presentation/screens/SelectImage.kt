@@ -104,21 +104,23 @@ fun SelectImageScreen(
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    CustomButton(
-                        name = "Take a photo",
-                        description = "Use your camera",
-                        image = painterResource(id = R.drawable.camera),
-                        onClick = {
-                            val uri = viewModel.generateTempImageUri()
-                            cameraLauncher.launch(uri)
-                        }
-                    )
-                    CustomButton(
-                        name = "Upload an image",
-                        description = "From your gallery",
-                        image = painterResource(id = R.drawable.upload),
-                        onClick = {galleryLauncher.launch("image/*")}
-                    )
+                    if (gameId == null) {
+                        CustomButton(
+                            name = "Take a photo",
+                            description = "Use your camera",
+                            image = painterResource(id = R.drawable.camera),
+                            onClick = {
+                                val uri = viewModel.generateTempImageUri()
+                                cameraLauncher.launch(uri)
+                            }
+                        )
+                        CustomButton(
+                            name = "Upload an image",
+                            description = "From your gallery",
+                            image = painterResource(id = R.drawable.upload),
+                            onClick = {galleryLauncher.launch("image/*")}
+                        )
+                    }
                     CustomButton(
                         name = "Use a sample image",
                         description = "A random picture",
