@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.graphics.BitmapFactory
+import com.example.drawmaster.util.NetworkClient
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
@@ -82,8 +83,8 @@ object ScoringUtil {
         try {
             val scheme = uri.scheme?.lowercase()
             if (scheme == "http" || scheme == "https") {
-                // Download remote image and decode
-                val client = OkHttpClient()
+                // Download remote image and decode using shared client
+                val client: OkHttpClient = NetworkClient.client
                 val req = Request.Builder().url(uri.toString()).build()
                 client.newCall(req).execute().use { resp ->
                     if (!resp.isSuccessful) throw IOException("failed to download image: ${resp.code}")

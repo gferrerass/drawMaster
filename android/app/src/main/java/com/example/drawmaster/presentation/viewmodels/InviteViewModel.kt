@@ -38,7 +38,7 @@ class InviteViewModel : ViewModel() {
 
     private val database = getFirebaseDatabase()
     private val auth = FirebaseAuth.getInstance()
-    private val httpClient = OkHttpClient()
+    private val httpClient = com.example.drawmaster.util.NetworkClient.client
 
     // Incoming invite listener
     data class IncomingInvite(

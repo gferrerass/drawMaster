@@ -69,7 +69,7 @@ class ConfirmImageViewModel(
                             try {
                                 val idToken = try { FirebaseTokenProvider.getToken(true) } catch (_: Exception) { "" }
                                 val apiUrl = com.example.drawmaster.BuildConfig.API_BASE_URL.trimEnd('/') + "/multiplayer/game/$gameId/set_reference"
-                                val client = OkHttpClient()
+                                val client = com.example.drawmaster.util.NetworkClient.client
                                 val json = "{\"imageUrl\": \"$remoteToUse\"}"
                                 val mediaType = "application/json; charset=utf-8".toMediaType()
                                 val body = json.toRequestBody(mediaType)

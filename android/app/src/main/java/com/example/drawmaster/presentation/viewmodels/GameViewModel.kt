@@ -62,7 +62,7 @@ class GameViewModel : ViewModel() {
     private var resultsListener: com.google.firebase.database.ValueEventListener? = null
     private val _results = MutableStateFlow<Map<String, Any?>?>(null)
     val results: StateFlow<Map<String, Any?>?> = _results.asStateFlow()
-    private val httpClient = OkHttpClient()
+    private val httpClient = com.example.drawmaster.util.NetworkClient.client
     private val mainHandler = Handler(Looper.getMainLooper())
 
         fun listenForResults(gameId: String) {

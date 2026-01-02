@@ -1,6 +1,6 @@
 package com.example.drawmaster.data.network
 
-import okhttp3.OkHttpClient
+import com.example.drawmaster.util.NetworkClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -19,7 +19,7 @@ object ApiClient {
     /** Create a Retrofit instance that injects Authorization header using the provided TokenProvider. */
     fun createRetrofit(tokenProvider: TokenProvider): Retrofit {
         val authInterceptor = AuthInterceptor(tokenProvider)
-        val client = OkHttpClient.Builder()
+        val client = NetworkClient.client.newBuilder()
             .addInterceptor(authInterceptor)
             .addInterceptor(logging)
             .build()
