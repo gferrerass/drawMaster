@@ -32,7 +32,13 @@ sealed class GameScreenState {
     object WaitingForResults : GameScreenState()
     data class Error(val message: String) : GameScreenState()
 }
-class GameViewModel : ViewModel() {
+class GameViewModel(
+    private val httpClient: okhttp3.OkHttpClient = com.example.drawmaster.util.NetworkClient.client,
+    private val getFirebaseAuth: () -> com.google.firebase.auth.FirebaseAuth = { com.google.firebase.auth.FirebaseAuth.getInstance() },
+    private val getFirebaseDatabaseFn: () -> com.google.firebase.database.FirebaseDatabase = { com.example.drawmaster.util.getFirebaseDatabase() },
+    private val getIdToken: suspend (Boolean) -> String = { forceRefresh -> com.example.drawmaster.util.FirebaseTokenProvider.getToken(forceRefresh) },
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.IO
+) : ViewModel() {
 
     private val _gameState = MutableStateFlow<GameScreenState>(GameScreenState.Loading)
     val gameState: StateFlow<GameScreenState> = _gameState.asStateFlow()
@@ -62,12 +68,11 @@ class GameViewModel : ViewModel() {
     private var resultsListener: com.google.firebase.database.ValueEventListener? = null
     private val _results = MutableStateFlow<Map<String, Any?>?>(null)
     val results: StateFlow<Map<String, Any?>?> = _results.asStateFlow()
-    private val httpClient = com.example.drawmaster.util.NetworkClient.client
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 
         fun listenForResults(gameId: String) {
         try {
-            val database = com.example.drawmaster.util.getFirebaseDatabase()
+            val database = getFirebaseDatabaseFn()
             val resultsRef = database.reference.child("games").child(gameId).child("results")
             resultsListener = object : com.google.firebase.database.ValueEventListener {
                 override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
@@ -180,7 +185,7 @@ class GameViewModel : ViewModel() {
                 return
             }
         try {
-            val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            val user = getFirebaseAuth().currentUser
             if (user == null) {
                 _gameState.value = GameScreenState.Error("not authenticated")
                 return
@@ -214,13 +219,13 @@ class GameViewModel : ViewModel() {
         val gameId = multiplayerGameId ?: return
         viewModelScope.launch {
             try {
-                val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                val user = getFirebaseAuth().currentUser
                 if (user == null) {
                     _gameState.value = GameScreenState.Error("not authenticated")
                     return@launch
                 }
                     // use centralized token provider
-                    val idToken = try { FirebaseTokenProvider.getToken(true) } catch (_: Exception) { "" }
+                    val idToken = try { getIdToken(true) } catch (_: Exception) { "" }
                 val apiUrl = com.example.drawmaster.BuildConfig.API_BASE_URL.trimEnd('/') + "/multiplayer/game/$gameId/submit"
                 val json = org.json.JSONObject().apply {
                     put("drawingUri", drawingURI)
@@ -239,7 +244,7 @@ class GameViewModel : ViewModel() {
 
                 // Execute synchronously on IO dispatcher and update UI on Main
                 try {
-                    val resp = withContext(Dispatchers.IO) { httpClient.newCall(req).execute() }
+                    val resp = withContext(ioDispatcher) { httpClient.newCall(req).execute() }
                     resp.use { r ->
                         if (!r.isSuccessful) {
                             _gameState.value = GameScreenState.Error("submit HTTP ${r.code}: ${r.message}")
@@ -267,7 +272,7 @@ class GameViewModel : ViewModel() {
     }
 
     fun submitMultiplayerDrawingForGame(gameId: String, drawingURI: String, originalURI: String, score: Int?) {
-        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        val user = getFirebaseAuth().currentUser
         if (user == null) {
             _gameState.value = GameScreenState.Error("not authenticated")
             return
@@ -275,7 +280,7 @@ class GameViewModel : ViewModel() {
 
         viewModelScope.launch {
                 try {
-                val token = try { FirebaseTokenProvider.getToken(true) } catch (_: Exception) { "" }
+                val token = try { getIdToken(true) } catch (_: Exception) { "" }
                 val apiUrl = com.example.drawmaster.BuildConfig.API_BASE_URL.trimEnd('/') + "/multiplayer/game/$gameId/submit"
                 val json = org.json.JSONObject().apply {
                     put("drawingUri", drawingURI)
@@ -297,14 +302,14 @@ class GameViewModel : ViewModel() {
 
                 suspend fun doCallSuspend(request: Request, attemptedRefresh: Boolean = false) {
                     try {
-                        val r = withContext(Dispatchers.IO) { httpClient.newCall(request).execute() }
+                        val r = withContext(ioDispatcher) { httpClient.newCall(request).execute() }
                         r.use { resp ->
                             val code = resp.code
                             val bodyStr = try { resp.body?.string() } catch (_: Exception) { null }
                             android.util.Log.i("GameVM", "submit HTTP $code body=$bodyStr")
                             if (code == 401 && !attemptedRefresh) {
                                 android.util.Log.w("GameVM", "401 received; attempting token refresh and retry")
-                                val newToken = try { FirebaseTokenProvider.getToken(true) } catch (_: Exception) { "" }
+                                val newToken = try { getIdToken(true) } catch (_: Exception) { "" }
                                 if (newToken.isBlank()) {
                                     _gameState.value = GameScreenState.Error("token refresh returned empty token")
                                     return
@@ -358,11 +363,11 @@ class GameViewModel : ViewModel() {
         timerJob?.cancel()
         // remove any firebase listeners
         if (submissionsListener != null && multiplayerGameId != null) {
-            val database = com.example.drawmaster.util.getFirebaseDatabase()
+            val database = getFirebaseDatabaseFn()
                 try { multiplayerGameId?.let { database.reference.child("games").child(it).child("submissions").removeEventListener(submissionsListener!!) } } catch (_: Exception) {}
         }
         if (resultsListener != null && multiplayerGameId != null) {
-            val database = com.example.drawmaster.util.getFirebaseDatabase()
+            val database = getFirebaseDatabaseFn()
                 try { multiplayerGameId?.let { database.reference.child("games").child(it).child("results").removeEventListener(resultsListener!!) } } catch (_: Exception) {}
         }
     }
